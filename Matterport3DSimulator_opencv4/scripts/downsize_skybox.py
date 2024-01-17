@@ -17,7 +17,7 @@ DOWNSIZED_HEIGHT = 512
 # Constants
 SKYBOX_WIDTH = 1024
 SKYBOX_HEIGHT = 1024
-base_dir = 'data/v1/scans'
+base_dir = '/media/m2g/Data/Datasets/dataset/v1/unzipped'
 skybox_template = '%s/%s/matterport_skybox_images/%s_skybox%d_sami.jpg'
 skybox_small_template = '%s/%s/matterport_skybox_images/%s_skybox%d_small.jpg'
 skybox_merge_template = '%s/%s/matterport_skybox_images/%s_skybox_small.jpg'

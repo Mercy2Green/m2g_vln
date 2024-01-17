@@ -23,14 +23,14 @@ import torch
 import torch.nn.functional as F
 import torch.multiprocessing as mp
 
-from utils import load_viewpoint_ids
+# from utils import load_viewpoint_ids
 from tqdm import tqdm
 from torch import optim
 
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize, RandomHorizontalFlip, RandomResizedCrop
 
 from easydict import EasyDict as edict
-from model_clip import CLIP
+# from model_clip import CLIP
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
 from segment_anything import build_sam, SamPredictor 
@@ -38,167 +38,16 @@ from segment_anything import build_sam, SamPredictor
 import open_clip
 import supervision as sv
 
-
-parser = argparse.ArgumentParser(
-    description=(
-        "Runs automatic mask generation on an input image or directory of images, "
-        "and outputs masks as either PNGs or COCO-style RLEs. Requires open-cv, "
-        "as well as pycocotools if saving in RLE format."
-    )
-)
-
-parser.add_argument(
-    "--input",
-    type=str,
-    required=True,
-    help="Path to either a single input image or folder of images.",
-)
-
-parser.add_argument(
-    "--output",
-    type=str,
-    required=True,
-    help=(
-        "Path to the directory where masks will be output. Output will be either a folder "
-        "of PNGs per image or a single json with COCO-style masks."
-    ),
-)
-
-parser.add_argument(
-    "--input-points-list",
-    type=list,
-    help=(
-        "List of input points on the pre-segmentation mask."
-    ),
-)
-
-parser.add_argument(
-    "--model-type",
-    type=str,
-    default="default",
-    help="The type of model to load, in ['default', 'vit_l', 'vit_b']",
-)
-
-parser.add_argument(
-    "--checkpoint",
-    type=str,
-    required=True,
-    help="The path to the SAM checkpoint to use for mask generation.",
-)
-
-parser.add_argument("--device", type=str, default="cuda", help="The device to run generation on.")
-
-parser.add_argument(
-    "--convert-to-rle",
-    action="store_true",
-    help=(
-        "Save masks as COCO RLEs in a single json instead of as a folder of PNGs. "
-        "Requires pycocotools."
-    ),
-)
-
-amg_settings = parser.add_argument_group("AMG Settings")
-
-amg_settings.add_argument(
-    "--points-per-side",
-    type=int,
-    default=None,
-    help="Generate masks by sampling a grid over the image with this many points to a side.",
-)
-
-amg_settings.add_argument(
-    "--points-per-batch",
-    type=int,
-    default=None,
-    help="How many input points to process simultaneously in one batch.",
-)
-
-amg_settings.add_argument(
-    "--pred-iou-thresh",
-    type=float,
-    default=None,
-    help="Exclude masks with a predicted score from the model that is lower than this threshold.",
-)
-
-amg_settings.add_argument(
-    "--stability-score-thresh",
-    type=float,
-    default=None,
-    help="Exclude masks with a stability score lower than this threshold.",
-)
-
-amg_settings.add_argument(
-    "--stability-score-offset",
-    type=float,
-    default=None,
-    help="Larger values perturb the mask more when measuring stability score.",
-)
-
-amg_settings.add_argument(
-    "--box-nms-thresh",
-    type=float,
-    default=None,
-    help="The overlap threshold for excluding a duplicate mask.",
-)
-
-amg_settings.add_argument(
-    "--crop-n-layers",
-    type=int,
-    default=None,
-    help=(
-        "If >0, mask generation is run on smaller crops of the image to generate more masks. "
-        "The value sets how many different scales to crop at."
-    ),
-)
-
-amg_settings.add_argument(
-    "--crop-nms-thresh",
-    type=float,
-    default=None,
-    help="The overlap threshold for excluding duplicate masks across different crops.",
-)
-
-amg_settings.add_argument(
-    "--crop-overlap-ratio",
-    type=int,
-    default=None,
-    help="Larger numbers mean image crops will overlap more.",
-)
-
-amg_settings.add_argument(
-    "--crop-n-points-downscale-factor",
-    type=int,
-    default=None,
-    help="The number of points-per-side in each layer of crop is reduced by this factor.",
-)
-
-amg_settings.add_argument(
-    "--min-mask-region-area",
-    type=int,
-    default=None,
-    help=(
-        "Disconnected mask regions or holes with area smaller than this value "
-        "in pixels are removed by postprocessing."
-    ),
-)
-
-def get_amg_kwargs(args):
-    amg_kwargs = {
-        "points_per_side": args.points_per_side,
-        "points_per_batch": args.points_per_batch,
-        "pred_iou_thresh": args.pred_iou_thresh,
-        "stability_score_thresh": args.stability_score_thresh,
-        "stability_score_offset": args.stability_score_offset,
-        "box_nms_thresh": args.box_nms_thresh,
-        "crop_n_layers": args.crop_n_layers,
-        "crop_nms_thresh": args.crop_nms_thresh,
-        "crop_overlap_ratio": args.crop_overlap_ratio,
-        "crop_n_points_downscale_factor": args.crop_n_points_downscale_factor,
-        "min_mask_region_area": args.min_mask_region_area,
-    }
-    amg_kwargs = {k: v for k, v in amg_kwargs.items() if v is not None}
-    return amg_kwargs
-
+def load_viewpoint_ids(connectivity_dir):
+    viewpoint_ids = []
+    with open(os.path.join(connectivity_dir, 'scans.txt')) as f:
+        scans = [x.strip() for x in f]
+    for scan in scans:
+        with open(os.path.join(connectivity_dir, '%s_connectivity.json'%scan)) as f:
+            data = json.load(f)
+            viewpoint_ids.extend([(scan, x['image_id']) for x in data if x['included']])
+    print('Loaded %d viewpoints' % len(viewpoint_ids))
+    return viewpoint_ids
 
 def BGR_to_RGB(cvimg):
     pilimg = cvimg.copy()
@@ -225,28 +74,27 @@ WIDTH = 224
 HEIGHT = 224
 VFOV = 60
 
+# def build_feature_extractor(checkpoint_file=None):
 
-def build_feature_extractor(checkpoint_file=None):
+#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#     torch.set_grad_enabled(False)
+#     model = CLIP(input_resolution=224, patch_size=clip_config.patches_size, width=clip_config.hidden_size, layers=clip_config.transformer_num_layers, heads=clip_config.transformer_num_heads).to(device)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.set_grad_enabled(False)
-    model = CLIP(input_resolution=224, patch_size=clip_config.patches_size, width=clip_config.hidden_size, layers=clip_config.transformer_num_layers, heads=clip_config.transformer_num_heads).to(device)
-
-    state_dict = torch.load(checkpoint_file, map_location='cpu')
-    model.load_state_dict(state_dict, strict=False)
+#     state_dict = torch.load(checkpoint_file, map_location='cpu')
+#     model.load_state_dict(state_dict, strict=False)
 
    
-    model.eval()
+#     model.eval()
 
-    img_transforms =  Compose([
-            Resize((224,224), interpolation=Image.BICUBIC),
-            ToTensor(),
-            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
-        ])
+#     img_transforms =  Compose([
+#             Resize((224,224), interpolation=Image.BICUBIC),
+#             ToTensor(),
+#             Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+#         ])
 
-    return model, img_transforms, device
+#     return model, img_transforms, device
 
-def build_clip_feature_extractor( ): # using segement anything model
+def build_clip_feature_extractor(): # using segement anything model
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -255,7 +103,7 @@ def build_clip_feature_extractor( ): # using segement anything model
         "ViT-H-14", "laion2b_s32b_b79k"
     )
     clip_model = clip_model.to(device)
-    clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+    #clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
 
     img_transforms =  Compose([
             Resize((224,224), interpolation=Image.BICUBIC),
@@ -326,14 +174,28 @@ def compute_clip_features(image, detections, clip_model, clip_preprocess):
 def build_object_mask_extractor(checkpoint_file_segment=None): # using segement anything model
 
     # build a Segment anything model and a CLIP model
-    device_segment = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.set_grad_enabled(False)
     model_segment = sam_model_registry['default'](checkpoint=checkpoint_file_segment).to(device_segment)
-    output_mode = "coco_rle" if args.convert_to_rle else "binary_mask"
-    amg_kwargs = get_amg_kwargs(args)
-    mask_generator = SamAutomaticMaskGenerator(model_segment, output_mode=output_mode, **amg_kwargs)
+    #output_mode = "coco_rle" if args.convert_to_rle else "binary_mask"
+    #amg_kwargs = get_amg_kwargs(args)
+    mask_generator = SamAutomaticMaskGenerator(
+            model_segment, 
+            points_per_side=12,
+            points_per_batch=144,
+            pred_iou_thresh=0.88,
+            stability_score_thresh=0.95,
+            crop_n_layers=0,
+            min_mask_region_area=100,
+            )
+    
+    img_transforms =  Compose([
+            Resize((224,224), interpolation=Image.BICUBIC),
+            ToTensor(),
+            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
+        ])
 
-    return mask_generator, device_segment
+    return mask_generator, img_transforms, device
 
 def mask_extraction(model, image: np.ndarray):
     results = model.generate(image)
@@ -353,9 +215,8 @@ def mask_extraction(model, image: np.ndarray):
     conf = np.array(conf)
     return mask, xyxy, conf
 
-def detection_generate(args, image_rgb, mask_generator):
-    mask, xyxy, conf = mask_extraction(
-        args.sam_variant, mask_generator, image_rgb)
+def detection_generate(image_rgb, mask_generator):
+    mask, xyxy, conf = mask_extraction(mask_generator, image_rgb)
     detections = sv.Detections(
         xyxy=xyxy,
         confidence=conf,
@@ -388,11 +249,8 @@ def process_features(proc_id, out_queue, scanvp_list, args):
 
     # Set up PyTorch CNN model
     torch.set_grad_enabled(False)
-    #model, img_transforms, device = build_feature_extractor(args.checkpoint_file) # into  build_feature_extractor function
 
-    clip_model, clip_preprocess, img_transforms, device = build_clip_feature_extractor() # into  build_feature_extractor function
-
-    mask_generator, device_segment = build_object_mask_extractor(args.checkpoint_file_segment) # into  build_feature_extractor function
+    mask_generator, img_transforms, device = build_object_mask_extractor(args.checkpoint_file_segment) # into  build_feature_extractor function
 
     for scan_id, viewpoint_id in scanvp_list:
         # Loop all discretized views from this location
@@ -420,7 +278,7 @@ def process_features(proc_id, out_queue, scanvp_list, args):
         images = torch.stack([img_transforms(image).to(device) for image in images], 0)
 
         fts = []
-        for k in range(0, len(images), args.batch_size):
+        for k in range(0, len(images), 1):
 
             # mask, xyxy, conf = get_sam_segmentation_dense(
             #     args.sam_variant, mask_generator, image_rgb)
@@ -430,7 +288,7 @@ def process_features(proc_id, out_queue, scanvp_list, args):
             #     class_id=np.zeros_like(conf).astype(int),
             #     mask=mask,
             # )
-            detections = detection_generate(args, images[k], mask_generator)
+            detections = detection_generate(images[k], mask_generator)
 
             image_feats= compute_clip_features(images[k], detections, clip_model, clip_preprocess)
             
@@ -442,15 +300,23 @@ def process_features(proc_id, out_queue, scanvp_list, args):
             fts.append(b_fts)
 
         fts = np.concatenate(fts, 0)
-        out_queue.put((scan_id, viewpoint_id, fts))
 
-    out_queue.put(None)
+        out_queue.append((scan_id, viewpoint_id, fts))
+
+        # out_queue.put((scan_id, viewpoint_id, fts))
+
+    # out_queue.put(None)
+    return out_queue
+
+
 
 def build_feature_file(args): # main funcution
     
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
     scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
+
+    print(scanvp_list)
 
     # workers load data 
     num_workers = min(args.num_workers, len(scanvp_list))
@@ -472,8 +338,9 @@ def build_feature_file(args): # main funcution
     num_finished_workers = 0
     num_finished_vps = 0
 
-    progress_bar = ProgressBar(max_value=len(scanvp_list))
+    progress_bar = ProgressBar(maxval=len(scanvp_list))
     progress_bar.start()
+
 
     with h5py.File(args.output_file, 'w') as outf:
         while num_finished_workers < num_workers:
@@ -497,19 +364,28 @@ def build_feature_file(args): # main funcution
                 progress_bar.update(num_finished_vps)
 
     progress_bar.finish()
+
     for process in processes:
         process.join()
-            
+
+
+    
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--checkpoint_file', default=None)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Runs automatic mask generation on an Matterport3D. "
+        )
+    )
+    # parser.add_argument('--checkpoint_file', default=None)
     parser.add_argument('--checkpoint_file_segment', default=None)
     parser.add_argument('--connectivity_dir', default='../datasets/R2R/connectivity')
     parser.add_argument('--scan_dir', default='../data/v1/scans')
     parser.add_argument('--output_file')
-    parser.add_argument('--batch_size', default=4, type=int)
-    parser.add_argument('--num_workers', type=int, default=1)
+    # parser.add_argument('--batch_size', default=4, type=int)
+    # parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--num_batches', type=int, default=2)
     args = parser.parse_args()
 
-    build_feature_file(args)
+    # build_feature_file(args)
+    build_feature_file_batch(args)
