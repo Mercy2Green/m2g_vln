@@ -93,58 +93,7 @@ def main(opts):
         LOGGER.disabled = True
         pbar = NoOp()
         model_saver = NoOp()
-
-    # # Model config
-    # model_config = PretrainedConfig.from_json_file(opts.model_config)
-    # #model_config.pretrain_tasks = opts.task_ratio.split('.')[::2]
-    # model_config.pretrain_tasks = set(model_config.pretrain_tasks)
-    # model_config.sem_pred_token = opts.sem_pred_token
-
-    # if model_config.lang_bert_name == 'bert-base-uncased':
-    #     tokenizer = AutoTokenizer.from_pretrained('../bert_config/bert-base-uncased')
-    # elif model_config.lang_bert_name == 'xlm-roberta-base':
-    #     tokenizer = AutoTokenizer.from_pretrained('../bert_config/xlm-roberta-base')
-    # else:
-    #     raise NotImplementedError
-
-    # # Prepare model
-    # if opts.checkpoint:
-    #     checkpoint = torch.load(opts.checkpoint, map_location='cpu')
-    # else:
-    #     checkpoint = {}
-    #     if opts.init_pretrained == 'roberta':
-    #         # roberta lang encoder
-    #         tmp = AutoModel.from_pretrained('datasets/pretrained/xlm-roberta-base')
-    #         for param_name, param in tmp.named_parameters():
-    #             param_name = 'bert.' + param_name
-    #             if 'bert.encoder.layer' in param_name:
-    #                 param_name = param_name.replace('bert.encoder.layer', 'bert.lang_encoder.layer')
-    #             checkpoint[param_name] = param
-    #         # embeddings.token_type_embeddings.weight (1 -> 2, the second is for image embedding)
-    #         checkpoint['bert.embeddings.token_type_embeddings.weight'] = torch.cat(
-    #             [checkpoint['bert.embeddings.token_type_embeddings.weight']] * 2, 0
-    #         )
-    #         del tmp
-    #     elif opts.init_pretrained == 'lxmert':
-    #         tmp = torch.load('datasets/pretrained/LXMERT/model_LXRT.pth', map_location='cpu')
-    #         for param_name, param in tmp.items():
-    #             param_name = param_name.replace('module.', '')
-    #             if 'bert.encoder.layer' in param_name:
-    #                 param_name = param_name.replace('bert.encoder.layer', 'bert.lang_encoder.layer')
-    #                 checkpoint[param_name] = param
-    #             elif 'bert.encoder.x_layers' in param_name:
-    #                 param_name1 = param_name.replace('bert.encoder.x_layers', 'bert.local_encoder.encoder.x_layers')
-    #                 param_name2 = param_name.replace('bert.encoder.x_layers', 'bert.global_encoder.encoder.x_layers')
-    #                 checkpoint[param_name1] = checkpoint[param_name2] = param
-    #             elif 'cls.predictions' in param_name:
-    #                 param_name = param_name.replace('cls.predictions', 'mlm_head.predictions')
-    #                 checkpoint[param_name] = param
-    #             else:
-    #                 checkpoint[param_name] = param
-    #         del tmp
-    
-    # model_class = GlocalTextPathCMTPreTraining
-
+      
     # Model config
     model_config = PretrainedConfig.from_json_file(opts.model_config)
     model_config.pretrain_tasks = []
@@ -152,8 +101,7 @@ def main(opts):
         model_config.pretrain_tasks.extend(train_dataset_config['tasks'])
     model_config.pretrain_tasks = set(model_config.pretrain_tasks)
 
-    tokenizer = AutoTokenizer.from_pretrained('../bert_config/bert-base-uncased')
-    
+    tokenizer = AutoTokenizer.from_pretrained('../../bert-base')
 
     # Prepare model
     if opts.checkpoint:
@@ -161,7 +109,7 @@ def main(opts):
     else:
         checkpoint = {}
         if opts.init_pretrained == 'bert':
-            tmp = AutoModel.from_pretrained('../bert_config/bert-base-uncased')
+            tmp = AutoModel.from_pretrained('../../bert-base')
             for param_name, param in tmp.named_parameters():
                 checkpoint[param_name] = param
             if model_config.lang_bert_name == 'xlm-roberta-base':
@@ -170,30 +118,31 @@ def main(opts):
                     [checkpoint['embeddings.token_type_embeddings.weight']] * 2, 0
                 )
             del tmp
-        # elif opts.init_pretrained == 'lxmert':
-        #     tmp = torch.load(
-        #         '../datasets/pretrained/LXMERT/model_LXRT.pth', 
-        #         map_location=lambda storage, loc: storage
-        #     )
-        #     for param_name, param in tmp.items():
-        #         param_name = param_name.replace('module.', '')
-        #         if 'bert.encoder.layer' in param_name:
-        #             param_name = param_name.replace('bert.encoder.layer', 'bert.lang_encoder.layer')
-        #             checkpoint[param_name] = param
-        #         elif 'bert.encoder.x_layers' in param_name:
-        #             param_name1 = param_name.replace('bert.encoder.x_layers', 'bert.local_encoder.encoder.x_layers')
-        #             param_name2 = param_name.replace('bert.encoder.x_layers', 'bert.global_encoder.encoder.x_layers')
-        #             param_name3 = param_name.replace('bert.encoder.x_layers', 'bert.grid_txt_encoder.encoder.x_layers')
-        #             checkpoint[param_name1] = checkpoint[param_name2] = checkpoint[param_name3] = param
+        elif opts.init_pretrained == 'lxmert':
+            tmp = torch.load(
+                '../datasets/pretrained/LXMERT/model_LXRT.pth', 
+                map_location=lambda storage, loc: storage
+            )
+            for param_name, param in tmp.items():
+                param_name = param_name.replace('module.', '')
+                if 'bert.encoder.layer' in param_name:
+                    param_name = param_name.replace('bert.encoder.layer', 'bert.lang_encoder.layer')
+                    checkpoint[param_name] = param
+                elif 'bert.encoder.x_layers' in param_name:
+                    param_name1 = param_name.replace('bert.encoder.x_layers', 'bert.local_encoder.encoder.x_layers')
+                    param_name2 = param_name.replace('bert.encoder.x_layers', 'bert.global_encoder.encoder.x_layers')
+                    param_name3 = param_name.replace('bert.encoder.x_layers', 'bert.grid_txt_encoder.encoder.x_layers')
+                    checkpoint[param_name1] = checkpoint[param_name2] = checkpoint[param_name3] = param
 
-        #         elif 'cls.predictions' in param_name:
-        #             param_name = param_name.replace('cls.predictions', 'mlm_head.predictions')
-        #             checkpoint[param_name] = param
-        #         else:
-        #             checkpoint[param_name] = param
-        #     del tmp
+                elif 'cls.predictions' in param_name:
+                    param_name = param_name.replace('cls.predictions', 'mlm_head.predictions')
+                    checkpoint[param_name] = param
+                else:
+                    checkpoint[param_name] = param
+            del tmp
     
     model_class = GlocalTextPathCMTPreTraining
+    
     
     # update some training configs
     model = model_class.from_pretrained(

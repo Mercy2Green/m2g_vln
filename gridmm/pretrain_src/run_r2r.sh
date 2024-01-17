@@ -8,5 +8,5 @@ CUDA_VISIBLE_DEVICES='0' python3 -m torch.distributed.run --master_port 29500 \
     train_r2r.py --world_size ${NUM_GPUS} \
     --vlnbert cmt \
     --model_config config/r2r_model_config.json \
-    --config config/r2r_pretrain.json \
+    --config config/r2r_m2g_pretrain.json \
     --output_dir $outdir

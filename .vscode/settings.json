@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./m2g_vln/preprocess/segment_anything_clip/scripts"
+    ]
+}
