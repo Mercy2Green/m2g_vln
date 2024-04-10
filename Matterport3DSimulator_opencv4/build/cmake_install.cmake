@@ -1,4 +1,4 @@
-# Install script for directory: /home/m2g/workspace/vln/Matterport3DSimulator
+# Install script for directory: /root/mount/Matterport3DSimulator
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -37,14 +37,9 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-# Set default install directory permissions.
-if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "/usr/bin/objdump")
-endif()
-
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/m2g/workspace/vln/Matterport3DSimulator/build/pybind11/cmake_install.cmake")
+  include("/root/mount/Matterport3DSimulator/build/pybind11/cmake_install.cmake")
 
 endif()
 
@@ -56,5 +51,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/m2g/workspace/vln/Matterport3DSimulator/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/root/mount/Matterport3DSimulator/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

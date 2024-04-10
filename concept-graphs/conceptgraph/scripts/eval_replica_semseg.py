@@ -254,6 +254,8 @@ def eval_replica(
 
 def main(args: argparse.Namespace):
 
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
     # map REPLICA_CLASSES to REPLICA_EXISTING_CLASSES
     class_all2existing = torch.ones(len(REPLICA_CLASSES)).long() * -1
     for i, c in enumerate(REPLICA_EXISTING_CLASSES):

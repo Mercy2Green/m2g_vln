@@ -392,6 +392,7 @@ class ReverieTextPathData(object):
         else:
             self.global_semantic = semantic[:,1:]
             self.global_map =  np.concatenate([self.global_map,np.zeros((12*49,))],0)
+        # global_map feature.
 
         self.global_map.fill(-1)
         position_x = np.concatenate(viewpoint_x_list,0)

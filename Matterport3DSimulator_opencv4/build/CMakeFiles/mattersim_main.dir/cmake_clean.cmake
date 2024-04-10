@@ -1,8 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/mattersim_main.dir/src/driver/mattersim_main.cpp.o"
-  "CMakeFiles/mattersim_main.dir/src/driver/mattersim_main.cpp.o.d"
-  "mattersim_main"
   "mattersim_main.pdb"
+  "mattersim_main"
 )
 
 # Per-language clean rules from dependency scanning.

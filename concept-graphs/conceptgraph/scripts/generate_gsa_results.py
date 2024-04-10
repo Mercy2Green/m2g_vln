@@ -52,8 +52,12 @@ sys.path.append(GSA_PATH) # This is needed for the following imports in this fil
 sys.path.append(TAG2TEXT_PATH) # This is needed for some imports in the Tag2Text files
 sys.path.append(EFFICIENTSAM_PATH)
 try:
-    from Tag2Text.models import tag2text
-    from Tag2Text import inference_tag2text, inference_ram
+    # from Tag2Text.models import tag2text
+    # from Tag2Text import inference_tag2text, inference_ram
+
+    from ram.models import ram_plus, ram, tag2text
+    from ram import inference_tag2text, inference_ram
+
     import torchvision.transforms as TS
 except ImportError as e:
     print("Tag2text sub-package not found. Please check your GSA_PATH. ")
@@ -252,7 +256,11 @@ def get_sam_segmentation_dense(
         xyxy: (N, 4)
         conf: (N,)
     '''
+
     if variant == "sam":
+        if hasattr(torch.cuda, 'empty_cache'):
+            torch.cuda.empty_cache()
+
         results = model.generate(image)
         mask = []
         xyxy = []
@@ -271,6 +279,8 @@ def get_sam_segmentation_dense(
         return mask, xyxy, conf
     elif variant == "fastsam":
         # The arguments are directly copied from the GSA repo
+        if hasattr(torch.cuda, 'empty_cache'):
+            torch.cuda.empty_cache()
         results = model(
             image,
             imgsz=1024,
@@ -350,6 +360,9 @@ def process_ai2thor_classes(classes: List[str], add_classes:List[str]=[], remove
     
     
 def main(args: argparse.Namespace):
+
+    #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:300"
+
     ### Initialize the Grounding DINO model ###
     grounding_dino_model = Model(
         model_config_path=GROUNDING_DINO_CONFIG_PATH, 
@@ -365,11 +378,17 @@ def main(args: argparse.Namespace):
     
     ###
     # Initialize the CLIP model
+    # clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+    #     "ViT-H-14", "laion2b_s32b_b79k"
+    # )
+    # clip_model = clip_model.to(args.device)
+    # clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+        
     clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
-        "ViT-H-14", "laion2b_s32b_b79k"
+        "ViT-B-32", "laion2b_s34b_b79k"
     )
     clip_model = clip_model.to(args.device)
-    clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+    clip_tokenizer = open_clip.get_tokenizer("ViT-B-32")
     
     # Initialize the dataset
     dataset = get_dataset(
@@ -422,7 +441,7 @@ def main(args: argparse.Namespace):
             # we reduce the threshold to obtain more tags
             tagging_model.threshold = 0.64 
         elif args.class_set == "ram":
-            tagging_model = tag2text.ram(pretrained=RAM_CHECKPOINT_PATH,
+            tagging_model = ram(pretrained=RAM_CHECKPOINT_PATH,
                                          image_size=384,
                                          vit='swin_l')
             
@@ -487,10 +506,10 @@ def main(args: argparse.Namespace):
             raw_image = tagging_transform(raw_image).unsqueeze(0).to(args.device)
             
             if args.class_set == "ram":
-                res = inference_ram.inference(raw_image , tagging_model)
+                res = inference_ram(raw_image , tagging_model)
                 caption="NA"
             elif args.class_set == "tag2text":
-                res = inference_tag2text.inference(raw_image , tagging_model, specified_tags)
+                res = inference_tag2text(raw_image , tagging_model, specified_tags)
                 caption=res[2]
 
             # Currently ", " is better for detecting single tags
@@ -635,6 +654,7 @@ def main(args: argparse.Namespace):
         
 
 if __name__ == "__main__":
+
     parser = get_parser()
     args = parser.parse_args()
     main(args)

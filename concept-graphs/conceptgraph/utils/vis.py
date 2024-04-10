@@ -211,11 +211,20 @@ def vis_result_fast(
     mask_annotator = sv.MaskAnnotator(
         color = color
     )
+
     labels = [
         f"{classes[class_id]} {confidence:0.2f}" 
-        for _, _, confidence, class_id, _ 
+        for _, _, confidence, class_id, _, _
         in detections]
-    
+      # what is labels look like?
+        # ['person 0.99', 'person 0.98', 'person 0.97', 'person 0.96', 'person 0.95', 'person 0.94', 'person 0.93', 'person 0.92', 'person 0.91', 'person 0.90', 'person 0.89', 'person 0.88', 'person 0.87', 'person 0.86', 'person 0.85', 'person 0.84', 'person 0.83', 'person 0.82', 'person 0.81', 'person 0.80', 'person 0.79', 'person 0.78', 'person 0.77', 'person 0.76', 'person 0.75', 'person 0.74', 'person 0.73', 'person 0.72', 'person 0.71', 'person 0.70', 'person 0.69', 'person 0.68', 'person 0.67', 'person 0.66', 'person 0.65', 'person 0.64', 'person 0.63', 'person 0.62', 'person 0.61', 'person 0.60', 'person 0.59', 'person 0.58', 'person 0.57', 'person 0.56', 'person 0.55', 'person 0.54', 'person 0.53', 'person 0.52', 'person 0.51', 'person 0.50', 'person 0.49', 'person 0.48', 'person 0.47', 'person 0.46', 'person 0.45', 'person 0.44', 'person 0.43', 'person 0.42', 'person 0.41', 'person 0.40', 'person 0.39', 'person 0.38', 'person 0.37', 'person 0.36', 'person 0.35', 'person 0.34', 'person 0.33', 'person 0.32', 'person 0.31', 'person 0.30', 'person 0.29',
+
+    # # rewrite labels
+    # labels = []
+    # for _, _, confidence, class_id, _ in list(detections):
+    #     label = f"{classes[class_id]} {confidence:0.2f}"
+    #     labels.append(label)
+
     if instance_random_color:
         # generate random colors for each segmentation
         # First create a shallow copy of the input detections

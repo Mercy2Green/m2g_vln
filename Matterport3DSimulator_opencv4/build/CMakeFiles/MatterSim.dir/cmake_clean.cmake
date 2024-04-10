@@ -1,12 +1,8 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/MatterSim.dir/src/lib/Benchmark.cpp.o"
-  "CMakeFiles/MatterSim.dir/src/lib/Benchmark.cpp.o.d"
   "CMakeFiles/MatterSim.dir/src/lib/MatterSim.cpp.o"
-  "CMakeFiles/MatterSim.dir/src/lib/MatterSim.cpp.o.d"
   "CMakeFiles/MatterSim.dir/src/lib/NavGraph.cpp.o"
-  "CMakeFiles/MatterSim.dir/src/lib/NavGraph.cpp.o.d"
+  "CMakeFiles/MatterSim.dir/src/lib/Benchmark.cpp.o"
   "CMakeFiles/MatterSim.dir/src/lib/cbf.cpp.o"
-  "CMakeFiles/MatterSim.dir/src/lib/cbf.cpp.o.d"
   "libMatterSim.pdb"
   "libMatterSim.so"
 )

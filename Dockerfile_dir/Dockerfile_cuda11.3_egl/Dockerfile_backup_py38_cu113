@@ -1,0 +1,101 @@
+# Matterport3DSimulator
+# Requires nvidia gpu with driver 396.37 or higher
+
+
+FROM nvidia/cudagl:11.3.0-devel-ubuntu20.04
+
+SHELL ["/bin/bash", "-c"]
+
+# Install cudnn
+# ENV CUDNN_VERSION 8.2.2.26
+# LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
+
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     libcudnn8=$CUDNN_VERSION-1+cuda11.4 \
+# libcudnn8-dev=$CUDNN_VERSION-1+cuda11.4 \
+# && \
+#     apt-mark hold libcudnn8 && \
+#     rm -rf /var/lib/apt/lists/*
+
+
+
+ENV cudnn_version=8.2.1.32
+ENV cuda_version=cuda11.3
+LABEL com.nvidia.cudnn.version="${cudnn_version}"
+RUN apt-get update && apt-get install -y libcudnn8=${cudnn_version}-1+${cuda_version}
+RUN apt-get install -y libcudnn8-dev=${cudnn_version}-1+${cuda_version}
+
+
+# Install a few libraries to support both EGL and OSMESA options
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y wget doxygen curl libjsoncpp-dev libepoxy-dev libglm-dev libosmesa6 libosmesa6-dev libglew-dev libopencv-dev python3-setuptools python3-dev python3-pip
+
+RUN apt-get update && apt-get install -y python-is-python3
+RUN apt-get install -y libglfw3-dev libgles2-mesa-dev
+
+#install latest cmake
+ADD https://cmake.org/files/v3.12/cmake-3.12.2-Linux-x86_64.sh /cmake-3.12.2-Linux-x86_64.sh
+RUN mkdir /opt/cmake
+RUN sh /cmake-3.12.2-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+RUN cmake --version
+
+# Install miniconda python38 latest
+RUN wget -O miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py38_23.11.0-2-Linux-x86_64.sh
+RUN /bin/bash miniconda.sh -b -p /opt/conda
+RUN rm miniconda.sh
+ENV PATH /opt/conda/bin:$PATH
+
+RUN conda create -y -n bevbert anaconda python=3.8 cmake=3.14.0
+RUN echo "source activate bevbert" >> ~/.bashrc
+
+RUN source activate bevbert && \
+    pip3 install numpy pandas networkx==2.2 opencv_python==4.1.2.30
+
+RUN source activate bevbert && \
+    pip3 install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+
+
+# BEVBert additional dependencies
+RUN source activate bevbert && \
+    pip3 install h5py msgpack_numpy tqdm ftfy regex timm && \
+    pip3 install progressbar2==3.55.0
+
+# install habitat and habitat_baselines
+
+RUN apt-get install -y git
+
+# RUN conda activate bevbert && \
+#     conda install -c aihabitat -c conda-forge habitat-sim=0.1.7 headless
+
+# RUN conda activate bevbert && \
+#     git clone --branch v0.1.7 git@github.com:facebookresearch/habitat-lab.git && \
+#     cd habitat-lab && \
+#     python3 setup.py develop --all # install habitat and habitat_baselines
+
+RUN source activate bevbert && \
+    conda install -y habitat-sim=0.2.3 withbullet -c conda-forge -c aihabitat
+
+RUN source activate bevbert && \
+    git clone --branch v0.2.3 https://github.com/facebookresearch/habitat-lab.git && \
+    cd habitat-lab && \
+    pip3 install -e habitat-lab && \
+    pip3 install -e habitat-baselines
+
+# RUN conda activate bevbert && \
+#     git clone --branch stable https://github.com/facebookresearch/habitat-lab.git && \
+#     cd habitat-lab && \
+#     pip3 install -e habitat-lab && \
+#     pip3 install -e habitat-baselines && cd ..
+
+# RUN conda activate bevbert && \
+#     conda install -y habitat-sim withbullet -c conda-forge -c aihabitat
+
+# RUN source activate bevbert && \
+#     conda uninstall -y libtiff && \
+#     conda install -y libtiff=4.3.0
+
+
+ENV PYTHONPATH=/root/mount/Matterport3DSimulator/build
+
+RUN conda env config vars set PYTHONPATH=/root/mount/Matterport3DSimulator/buildvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

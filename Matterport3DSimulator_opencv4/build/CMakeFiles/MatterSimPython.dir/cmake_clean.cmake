@@ -1,8 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/MatterSimPython.dir/src/lib_python/MatterSimPython.cpp.o"
-  "CMakeFiles/MatterSimPython.dir/src/lib_python/MatterSimPython.cpp.o.d"
-  "MatterSim.cpython-38-x86_64-linux-gnu.so"
   "MatterSim.pdb"
+  "MatterSim.cpython-36m-x86_64-linux-gnu.so"
 )
 
 # Per-language clean rules from dependency scanning.

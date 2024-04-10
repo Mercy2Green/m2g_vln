@@ -99,9 +99,11 @@ def build_clip_feature_extractor(): # using segement anything model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Initialize the CLIP model
-    clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
-        "ViT-H-14", "laion2b_s32b_b79k"
-    )
+    # clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+    #     "ViT-H-14", "laion2b_s32b_b79k"
+    # )
+
+    clip_model, _, clip_preprocess = open_clip.create_model_and_transforms("ViT-B-32")
     clip_model = clip_model.to(device)
     #clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
 
@@ -117,9 +119,11 @@ def compute_clip_features(image, detections, clip_model, clip_preprocess):
 
     # output all masks features by append to a list
 
-    backup_image = image.copy()
+    # backup_image = image.copy()
+
+    # print(image)
     
-    image = Image.fromarray(image)
+    # image = Image.fromarray(image)
     
     # padding = args.clip_padding  # Adjust the padding amount as needed
     padding = 20  # Adjust the padding amount as needed
@@ -207,10 +211,11 @@ def mask_extraction(model, image: np.ndarray):
     mask = np.array(mask)
     xyxy = np.array(xyxy)
     conf = np.array(conf)
+
     return mask, xyxy, conf
 
-def detection_generate(image_rgb, mask_generator):
-    mask, xyxy, conf = mask_extraction(mask_generator, image_rgb)
+def detection_generate(mask, xyxy, conf):
+
     detections = sv.Detections(
         xyxy=xyxy,
         confidence=conf,
@@ -232,9 +237,9 @@ def build_simulator(connectivity_dir, scan_dir):
     sim.initialize()
     return sim
 
-def process_features_batch(proc_id, scanvp_list, args):
+def process_features_batch(proc_id, out_queue, scanvp_list, args):
 
-    out_queue = []
+    # out_queue = []
 
     print('start proc_id: %d' % proc_id)
     gpu_count = torch.cuda.device_count()
@@ -251,9 +256,19 @@ def process_features_batch(proc_id, scanvp_list, args):
 
     mask_generator, device_segment = build_object_mask_extractor(args.checkpoint_file_segment) # into  build_feature_extractor function
 
+    count_number = 1
+
     for scan_id, viewpoint_id in scanvp_list:
+
+        # print the progress for moniter in percentage
+        print('scan_id: %s, viewpoint_id: %s' % (scan_id, viewpoint_id))
+        print('percentage: %d/%d' % (count_number, len(scanvp_list)))
+        count_number += 1
+
         # Loop all discretized views from this location
         images = []
+        images_rgb = []
+
         for ix in range(VIEWPOINT_SIZE):
             if ix == 0:
                 sim.newEpisode([scan_id], [viewpoint_id], [0], [math.radians(-30)])
@@ -273,39 +288,47 @@ def process_features_batch(proc_id, scanvp_list, args):
             image = BGR_to_RGB(image)
             image = Image.fromarray(image) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images.append(image)
+            images_rgb.append(image)
 
         images = torch.stack([img_transforms(image).to(device) for image in images], 0)
 
         fts = []
+
         for k in range(0, len(images), 1):
 
-            # mask, xyxy, conf = get_sam_segmentation_dense(
-            #     args.sam_variant, mask_generator, image_rgb)
-            # detections = sv.Detections(
-            #     xyxy=xyxy,
-            #     confidence=conf,
-            #     class_id=np.zeros_like(conf).astype(int),
-            #     mask=mask,
-            # )
-            detections = detection_generate(images[k], mask_generator)
+            # print the progress for moniter in percentage
+            print('progress: %d/%d' % (k, len(images)))
 
-            image_feats= compute_clip_features(images[k], detections, clip_model, clip_preprocess)
-            
-            # This is the place i change !!!!!!!!!!!!!
-            b_fts = image_feats
+            # print(images[k].shape)
+            # print(images_rgb[k])
 
-            # b_fts = model(images[k: k+args.batch_size]) # this is my question
-            b_fts = b_fts.data.cpu().numpy().astype(np.float16)
-            fts.append(b_fts)
+            mask, xyxy, conf = mask_extraction(mask_generator, images[k])
+
+            # print(xyxy)
+
+            if(xyxy.size > 0):
+                detections = detection_generate(mask, xyxy, conf)
+                image_feats= compute_clip_features(images_rgb[k], detections, clip_model, clip_preprocess)
+                # This is the place i change !!!!!!!!!!!!!
+                b_fts = image_feats
+
+                #print(image_feats)
+
+                # b_fts = model(images[k: k+args.batch_size]) # this is my question
+                b_fts = b_fts.astype(np.float16)
+
+                fts.append(b_fts)
+            else:
+                # print(xyxy)
+                print('no object detected')
 
         fts = np.concatenate(fts, 0)
 
-        out_queue.append((scan_id, viewpoint_id, fts))
+        # out_queue.append((scan_id, viewpoint_id, fts))
+        out_queue.put((scan_id, viewpoint_id, fts))
 
-        # out_queue.put((scan_id, viewpoint_id, fts))
-
-    # out_queue.put(None)
-    return out_queue
+    out_queue.put(None)
+    # return out_queue
 
 
 def process_features(proc_id, out_queue, scanvp_list, args):
@@ -361,6 +384,8 @@ def process_features(proc_id, out_queue, scanvp_list, args):
             #     class_id=np.zeros_like(conf).astype(int),
             #     mask=mask,
             # )
+            print(images[k])
+
             detections = detection_generate(images[k], mask_generator)
 
             image_feats= compute_clip_features(images[k], detections, clip_model, clip_preprocess)
@@ -388,6 +413,8 @@ def build_feature_file_batch(args): # main funcution
     num_batches = min(args.num_batches, len(scanvp_list))
     num_data_per_batch = len(scanvp_list) // num_batches # how many data per batch
 
+    out_queue = mp.Queue()
+
     res = []
 
     for batch_id in range(num_batches):
@@ -396,27 +423,35 @@ def build_feature_file_batch(args): # main funcution
 
         print(sidx, eidx)
 
-        batch_object_feature = process_features_batch(batch_id, scanvp_list[sidx: eidx], args)
+        process_features_batch(batch_id, out_queue, scanvp_list[sidx: eidx], args)
 
-        res.append(batch_object_feature)
+
+    num_finished_batches = 0
+    num_finished_vps = 0
 
     progress_bar = ProgressBar(maxval=len(scanvp_list))
     progress_bar.start()
 
     with h5py.File(args.output_file, 'w') as outf:
-            scan_id, viewpoint_id, fts = res
-            key = '%s_%s'%(scan_id, viewpoint_id)
-            data = fts
-            outf.create_dataset(key, data.shape, dtype='float', compression='gzip')
-            outf[key][...] = data
-            outf[key].attrs['scanId'] = scan_id
-            outf[key].attrs['viewpointId'] = viewpoint_id
-            outf[key].attrs['image_w'] = WIDTH
-            outf[key].attrs['image_h'] = HEIGHT
-            outf[key].attrs['vfov'] = VFOV
+        while num_finished_batches < num_batches:
+            res = out_queue.get()
+            if res is None:
+                num_finished_batches += 1
+            else:
+                scan_id, viewpoint_id, fts = res
+                key = '%s_%s'%(scan_id, viewpoint_id)
+                
+                data = fts
+                outf.create_dataset(key, data.shape, dtype='float', compression='gzip')
+                outf[key][...] = data
+                outf[key].attrs['scanId'] = scan_id
+                outf[key].attrs['viewpointId'] = viewpoint_id
+                outf[key].attrs['image_w'] = WIDTH
+                outf[key].attrs['image_h'] = HEIGHT
+                outf[key].attrs['vfov'] = VFOV
 
-            num_finished_vps += 1
-            progress_bar.update(num_finished_vps)
+                num_finished_vps += 1
+                progress_bar.update(num_finished_vps)
 
     progress_bar.finish()
 
@@ -432,6 +467,7 @@ def build_feature_file(args): # main funcution
     num_data_per_worker = len(scanvp_list) // num_workers # how many data per worker
 
     out_queue = mp.Queue()
+
     processes = []
     for proc_id in range(num_workers): # proc_id is the index of workers
         sidx = proc_id * num_data_per_worker # start index
