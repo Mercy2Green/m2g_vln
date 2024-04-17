@@ -290,6 +290,8 @@ def process_features_batch(proc_id, out_queue, scanvp_list, args):
             images.append(image)
             images_rgb.append(image)
 
+            # image.save("./{scan_id}_{viewpoint_id}_{ix}.png".format(scan_id=scan_id, viewpoint_id=viewpoint_id, ix=ix))
+
         images = torch.stack([img_transforms(image).to(device) for image in images], 0)
 
         fts = []
