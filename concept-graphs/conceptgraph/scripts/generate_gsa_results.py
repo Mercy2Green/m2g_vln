@@ -20,6 +20,7 @@ import pickle
 import gzip
 import open_clip
 
+from ultralytics import YOLO
 import torch
 import torchvision
 from torch.utils.data import Dataset
@@ -28,6 +29,7 @@ from tqdm import trange
 
 from conceptgraph.dataset.datasets_common import get_dataset
 from conceptgraph.utils.vis import vis_result_fast, vis_result_slow_caption
+from conceptgraph.utils.model_utils import compute_clip_features
 import torch.nn.functional as F
 
 
@@ -46,21 +48,19 @@ else:
     raise ValueError("Please set the GSA_PATH environment variable to the path of the GSA repo. ")
     
 import sys
-TAG2TEXT_PATH = os.path.join(GSA_PATH, "Tag2Text")
+TAG2TEXT_PATH = os.path.join(GSA_PATH, "")
 EFFICIENTSAM_PATH = os.path.join(GSA_PATH, "EfficientSAM")
 sys.path.append(GSA_PATH) # This is needed for the following imports in this file
 sys.path.append(TAG2TEXT_PATH) # This is needed for some imports in the Tag2Text files
 sys.path.append(EFFICIENTSAM_PATH)
+
+import torchvision.transforms as TS
 try:
-    # from Tag2Text.models import tag2text
-    # from Tag2Text import inference_tag2text, inference_ram
-
-    from ram.models import ram_plus, ram, tag2text
+    from ram.models import ram
+    from ram.models import tag2text
     from ram import inference_tag2text, inference_ram
-
-    import torchvision.transforms as TS
 except ImportError as e:
-    print("Tag2text sub-package not found. Please check your GSA_PATH. ")
+    print("RAM sub-package not found. Please check your GSA_PATH. ")
     raise e
 
 # Disable torch gradient computation
@@ -112,6 +112,9 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--class_set", type=str, default="scene", 
                         choices=["scene", "generic", "minimal", "tag2text", "ram", "none"], 
                         help="If none, no tagging and detection will be used and the SAM will be run in dense sampling mode. ")
+    parser.add_argument("--detector", type=str, default="dino", 
+                        choices=["yolo", "dino"], 
+                        help="When given classes, whether to use YOLO-World or GroundingDINO to detect objects. ")
     parser.add_argument("--add_bg_classes", action="store_true", 
                         help="If set, add background classes (wall, floor, ceiling) to the class set. ")
     parser.add_argument("--accumu_classes", action="store_true",
@@ -133,61 +136,7 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def compute_clip_features(image, detections, clip_model, clip_preprocess, clip_tokenizer, classes, device):
-    backup_image = image.copy()
-    
-    image = Image.fromarray(image)
-    
-    # padding = args.clip_padding  # Adjust the padding amount as needed
-    padding = 20  # Adjust the padding amount as needed
-    
-    image_crops = []
-    image_feats = []
-    text_feats = []
 
-    
-    for idx in range(len(detections.xyxy)):
-        # Get the crop of the mask with padding
-        x_min, y_min, x_max, y_max = detections.xyxy[idx]
-
-        # Check and adjust padding to avoid going beyond the image borders
-        image_width, image_height = image.size
-        left_padding = min(padding, x_min)
-        top_padding = min(padding, y_min)
-        right_padding = min(padding, image_width - x_max)
-        bottom_padding = min(padding, image_height - y_max)
-
-        # Apply the adjusted padding
-        x_min -= left_padding
-        y_min -= top_padding
-        x_max += right_padding
-        y_max += bottom_padding
-
-        cropped_image = image.crop((x_min, y_min, x_max, y_max))
-        
-        # Get the preprocessed image for clip from the crop 
-        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to("cuda")
-
-        crop_feat = clip_model.encode_image(preprocessed_image)
-        crop_feat /= crop_feat.norm(dim=-1, keepdim=True)
-        
-        class_id = detections.class_id[idx]
-        tokenized_text = clip_tokenizer([classes[class_id]]).to("cuda")
-        text_feat = clip_model.encode_text(tokenized_text)
-        text_feat /= text_feat.norm(dim=-1, keepdim=True)
-        
-        crop_feat = crop_feat.cpu().numpy()
-        text_feat = text_feat.cpu().numpy()
-
-        image_crops.append(cropped_image)
-        image_feats.append(crop_feat)
-        text_feats.append(text_feat)
-        
-    # turn the list of feats into np matrices
-    image_feats = np.concatenate(image_feats, axis=0)
-    text_feats = np.concatenate(text_feats, axis=0)
-
-    return image_crops, image_feats, text_feats
 
 
 # Prompting SAM with detected boxes
@@ -256,11 +205,7 @@ def get_sam_segmentation_dense(
         xyxy: (N, 4)
         conf: (N,)
     '''
-
     if variant == "sam":
-        if hasattr(torch.cuda, 'empty_cache'):
-            torch.cuda.empty_cache()
-
         results = model.generate(image)
         mask = []
         xyxy = []
@@ -279,8 +224,6 @@ def get_sam_segmentation_dense(
         return mask, xyxy, conf
     elif variant == "fastsam":
         # The arguments are directly copied from the GSA repo
-        if hasattr(torch.cuda, 'empty_cache'):
-            torch.cuda.empty_cache()
         results = model(
             image,
             imgsz=1024,
@@ -360,9 +303,6 @@ def process_ai2thor_classes(classes: List[str], add_classes:List[str]=[], remove
     
     
 def main(args: argparse.Namespace):
-
-    #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:300"
-
     ### Initialize the Grounding DINO model ###
     grounding_dino_model = Model(
         model_config_path=GROUNDING_DINO_CONFIG_PATH, 
@@ -378,17 +318,11 @@ def main(args: argparse.Namespace):
     
     ###
     # Initialize the CLIP model
-    # clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
-    #     "ViT-H-14", "laion2b_s32b_b79k"
-    # )
-    # clip_model = clip_model.to(args.device)
-    # clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
-        
     clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
-        "ViT-B-32", "laion2b_s34b_b79k"
+        "ViT-H-14", "laion2b_s32b_b79k"
     )
     clip_model = clip_model.to(args.device)
-    clip_tokenizer = open_clip.get_tokenizer("ViT-B-32")
+    clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
     
     # Initialize the dataset
     dataset = get_dataset(
@@ -405,6 +339,9 @@ def main(args: argparse.Namespace):
     )
 
     global_classes = set()
+    
+    # Initialize a YOLO-World model
+    yolo_model_w_classes = YOLO('yolov8l-world.pt')  # or choose yolov8m/l-world.pt
     
     if args.class_set == "scene":
         # Load the object meta information
@@ -509,7 +446,7 @@ def main(args: argparse.Namespace):
                 res = inference_ram(raw_image , tagging_model)
                 caption="NA"
             elif args.class_set == "tag2text":
-                res = inference_tag2text(raw_image , tagging_model, specified_tags)
+                res = inference_tag2text.inference(raw_image , tagging_model, specified_tags)
                 caption=res[2]
 
             # Currently ", " is better for detecting single tags
@@ -565,36 +502,60 @@ def main(args: argparse.Namespace):
                 image, detections, classes, instance_random_color=True)
             
             cv2.imwrite(vis_save_path, annotated_image)
-
-            
         else:
-            # Using GroundingDINO to detect and SAM to segment
-            detections = grounding_dino_model.predict_with_classes(
-                image=image, # This function expects a BGR image...
-                classes=classes,
-                box_threshold=args.box_threshold,
-                text_threshold=args.text_threshold,
-            )
+            if args.detector == "dino":
+                # Using GroundingDINO to detect and SAM to segment
+                detections = grounding_dino_model.predict_with_classes(
+                    image=image, # This function expects a BGR image...
+                    classes=classes,
+                    box_threshold=args.box_threshold,
+                    text_threshold=args.text_threshold,
+                )
             
-            if len(detections.class_id) > 0:
-                ### Non-maximum suppression ###
-                # print(f"Before NMS: {len(detections.xyxy)} boxes")
-                nms_idx = torchvision.ops.nms(
-                    torch.from_numpy(detections.xyxy), 
-                    torch.from_numpy(detections.confidence), 
-                    args.nms_threshold
-                ).numpy().tolist()
-                # print(f"After NMS: {len(detections.xyxy)} boxes")
+                if len(detections.class_id) > 0:
+                    ### Non-maximum suppression ###
+                    # print(f"Before NMS: {len(detections.xyxy)} boxes")
+                    nms_idx = torchvision.ops.nms(
+                        torch.from_numpy(detections.xyxy), 
+                        torch.from_numpy(detections.confidence), 
+                        args.nms_threshold
+                    ).numpy().tolist()
+                    # print(f"After NMS: {len(detections.xyxy)} boxes")
 
-                detections.xyxy = detections.xyxy[nms_idx]
-                detections.confidence = detections.confidence[nms_idx]
-                detections.class_id = detections.class_id[nms_idx]
+                    detections.xyxy = detections.xyxy[nms_idx]
+                    detections.confidence = detections.confidence[nms_idx]
+                    detections.class_id = detections.class_id[nms_idx]
+                    
+                    # Somehow some detections will have class_id=-1, remove them
+                    valid_idx = detections.class_id != -1
+                    detections.xyxy = detections.xyxy[valid_idx]
+                    detections.confidence = detections.confidence[valid_idx]
+                    detections.class_id = detections.class_id[valid_idx]
+
+                    # # Somehow some detections will have class_id=-None, remove them
+                    # valid_idx = [i for i, val in enumerate(detections.class_id) if val is not None]
+                    # detections.xyxy = detections.xyxy[valid_idx]
+                    # detections.confidence = detections.confidence[valid_idx]
+                    # detections.class_id = [detections.class_id[i] for i in valid_idx]
+            elif args.detector == "yolo":
+                # YOLO 
+                # yolo_model.set_classes(classes)
+                yolo_model_w_classes.set_classes(classes)
+                yolo_results_w_classes = yolo_model_w_classes.predict(color_path)
+
+                yolo_results_w_classes[0].save(vis_save_path[:-4] + "_yolo_out.jpg")
+                xyxy_tensor = yolo_results_w_classes[0].boxes.xyxy 
+                xyxy_np = xyxy_tensor.cpu().numpy()
+                confidences = yolo_results_w_classes[0].boxes.conf.cpu().numpy()
                 
-                # Somehow some detections will have class_id=-1, remove them
-                valid_idx = detections.class_id != -1
-                detections.xyxy = detections.xyxy[valid_idx]
-                detections.confidence = detections.confidence[valid_idx]
-                detections.class_id = detections.class_id[valid_idx]
+                detections = sv.Detections(
+                    xyxy=xyxy_np,
+                    confidence=confidences,
+                    class_id=yolo_results_w_classes[0].boxes.cls.cpu().numpy().astype(int),
+                    mask=None,
+                )
+                
+            if len(detections.class_id) > 0:
                 
                 ### Segment Anything ###
                 detections.mask = get_sam_segmentation_from_xyxy(
@@ -654,7 +615,6 @@ def main(args: argparse.Namespace):
         
 
 if __name__ == "__main__":
-
     parser = get_parser()
     args = parser.parse_args()
     main(args)
