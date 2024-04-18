@@ -188,7 +188,7 @@ def build_feature_file(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', default='ViT-B/16')
+    parser.add_argument('--model_name', default='/root/mount/Model/ViT-B-16.pt')
     parser.add_argument('--checkpoint_file', default=None)
     parser.add_argument('--connectivity_dir', default='precompute_features/connectivity')
     parser.add_argument('--scan_dir', default='/root/mount/Matterport3DSimulator/data/v1/scans') # mp3d scan path
@@ -199,3 +199,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     build_feature_file(args)
+
+    # python3 precompute_features/grid_mp3d_clip.py --scan_dir=/root/mount/Matterport3DSimulator/data/v1/scans

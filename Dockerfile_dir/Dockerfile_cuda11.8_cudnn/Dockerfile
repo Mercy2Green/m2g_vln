@@ -39,7 +39,7 @@ RUN source activate conceptgraph && conda env config vars set BUILD_WITH_CUDA=Tr
 RUN source activate conceptgraph && \
     pip3 install tyro open_clip_torch wandb h5py openai hydra-core distinctipy && \
     pip3 install ultralytics && \
-    pip3 install numpy pandas networkx==2.2 opencv-python
+    pip3 install numpy pandas networkx==2.8 opencv-python
 
 RUN source activate conceptgraph && \
     conda install -y -c fvcore -c iopath -c conda-forge fvcore iopath && \

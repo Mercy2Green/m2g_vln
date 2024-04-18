@@ -68,7 +68,7 @@ def build_simulator(connectivity_dir):
     return sim
 
 def build_habitat_sim(scan):
-    sim = HabitatUtils(f'/data/andong/vlnce_dataset/data/scene_datasets/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
+    sim = HabitatUtils(f'/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
     return sim
 
 def process_features(proc_id, out_queue, scanvp_list, args):
@@ -176,7 +176,7 @@ def build_feature_file(args):
 if __name__ == '__main__':
     os.system("mkdir -p img_features")
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', default='ViT-B/16')
+    parser.add_argument('--model_name', default='/root/mount/Model/ViT-B-16.pt')
     parser.add_argument('--connectivity_dir', default='precompute_features/connectivity')
     parser.add_argument('--output_file', default='img_features/vit_b16_224_clip_patch_habitat.hdf5')
     parser.add_argument('--batch_size', default=12, type=int)

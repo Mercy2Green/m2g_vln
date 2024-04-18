@@ -28,7 +28,7 @@ if FILL_HOLES:
 # Note: Matterport camera is really y=up, x=right, -z=look.
 SKYBOX_WIDTH = 1024
 SKYBOX_HEIGHT = 1024
-base_dir = '/media/m2g/Data/Datasets/dataset/v1/unzipped'
+base_dir = 'data/v1/scans'
 skybox_template = '%s/%s/matterport_skybox_images/%s_skybox%d_sami.jpg'
 color_template = '%s/%s/undistorted_color_images/%s_i%s.jpg'
 depth_template = '%s/%s/undistorted_depth_images/%s_d%s.png'

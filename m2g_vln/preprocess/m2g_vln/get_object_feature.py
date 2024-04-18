@@ -38,6 +38,12 @@ from segment_anything import build_sam, SamPredictor
 import open_clip
 import supervision as sv
 
+# import matplotlib
+
+# matplotlib.use('WebAgg')
+
+# import matplotlib.pyplot as plt
+
 def load_viewpoint_ids(connectivity_dir):
     viewpoint_ids = []
     with open(os.path.join(connectivity_dir, 'scans.txt')) as f:
@@ -348,9 +354,19 @@ def process_features(proc_id, out_queue, scanvp_list, args):
 
     mask_generator, device_segment = build_object_mask_extractor(args.checkpoint_file_segment) # into  build_feature_extractor function
 
+    count_number = 1
+
     for scan_id, viewpoint_id in scanvp_list:
+
+        # print the progress for moniter in percentage
+        print('scan_id: %s, viewpoint_id: %s' % (scan_id, viewpoint_id))
+        print('percentage: %d/%d' % (count_number, len(scanvp_list)))
+        count_number += 1
+
         # Loop all discretized views from this location
         images = []
+        images_rgb = []
+
         for ix in range(VIEWPOINT_SIZE):
             if ix == 0:
                 sim.newEpisode([scan_id], [viewpoint_id], [0], [math.radians(-30)])
@@ -366,36 +382,69 @@ def process_features(proc_id, out_queue, scanvp_list, args):
             else:
                 continue
 
+            # image = np.array(state.rgb, copy=True) # in BGR channel
+            # image = BGR_to_RGB(image)
+            # image = Image.fromarray(image) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # images.append(image)
             image = np.array(state.rgb, copy=True) # in BGR channel
             image = BGR_to_RGB(image)
             image = Image.fromarray(image) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images.append(image)
+            images_rgb.append(image)
 
         images = torch.stack([img_transforms(image).to(device) for image in images], 0)
 
         fts = []
+
         for k in range(0, len(images), 1):
 
-            # mask, xyxy, conf = get_sam_segmentation_dense(
-            #     args.sam_variant, mask_generator, image_rgb)
-            # detections = sv.Detections(
-            #     xyxy=xyxy,
-            #     confidence=conf,
-            #     class_id=np.zeros_like(conf).astype(int),
-            #     mask=mask,
-            # )
-            print(images[k])
+            # print the progress for moniter in percentage
+            print('progress: %d/%d' % (k, len(images)))
 
-            detections = detection_generate(images[k], mask_generator)
+            # print(images[k].shape)
+            # print(images_rgb[k])
 
-            image_feats= compute_clip_features(images[k], detections, clip_model, clip_preprocess)
+            mask, xyxy, conf = mask_extraction(mask_generator, images[k])
+
+            # print(xyxy)
+
+            if(xyxy.size > 0):
+                detections = detection_generate(mask, xyxy, conf)
+                image_feats= compute_clip_features(images_rgb[k], detections, clip_model, clip_preprocess)
+                # This is the place i change !!!!!!!!!!!!!
+                b_fts = image_feats
+
+                #print(image_feats)
+
+                # b_fts = model(images[k: k+args.batch_size]) # this is my question
+                b_fts = b_fts.astype(np.float16)
+
+                fts.append(b_fts)
+            else:
+                # print(xyxy)
+                print('no object detected')
+        # for k in range(0, len(images), 1):
+
+        #     # mask, xyxy, conf = get_sam_segmentation_dense(
+        #     #     args.sam_variant, mask_generator, image_rgb)
+        #     # detections = sv.Detections(
+        #     #     xyxy=xyxy,
+        #     #     confidence=conf,
+        #     #     class_id=np.zeros_like(conf).astype(int),
+        #     #     mask=mask,
+        #     # )
+        #     print(images[k])
+
+        #     detections = detection_generate(images[k], mask_generator)
+
+        #     image_feats= compute_clip_features(images[k], detections, clip_model, clip_preprocess)
             
-            # This is the place i change !!!!!!!!!!!!!
-            b_fts = image_feats
+        #     # This is the place i change !!!!!!!!!!!!!
+        #     b_fts = image_feats
 
-            # b_fts = model(images[k: k+args.batch_size]) # this is my question
-            b_fts = b_fts.data.cpu().numpy().astype(np.float16)
-            fts.append(b_fts)
+        #     # b_fts = model(images[k: k+args.batch_size]) # this is my question
+        #     b_fts = b_fts.data.cpu().numpy().astype(np.float16)
+        #     fts.append(b_fts)
 
         fts = np.concatenate(fts, 0)
 
@@ -468,6 +517,8 @@ def build_feature_file(args): # main funcution
 
     out_queue = mp.Queue()
 
+    res = []
+
     processes = []
     for proc_id in range(num_workers): # proc_id is the index of workers
         sidx = proc_id * num_data_per_worker # start index
@@ -528,9 +579,9 @@ if __name__ == '__main__':
     parser.add_argument('--scan_dir', default='../data/v1/scans')
     parser.add_argument('--output_file')
     # parser.add_argument('--batch_size', default=4, type=int)
-    # parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--num_workers', type=int, default=1)
     parser.add_argument('--num_batches', type=int, default=2)
     args = parser.parse_args()
 
-    # build_feature_file(args)
-    build_feature_file_batch(args)
+    build_feature_file(args)
+    # build_feature_file_batch(args)
