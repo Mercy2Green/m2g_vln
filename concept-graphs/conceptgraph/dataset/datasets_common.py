@@ -48,7 +48,7 @@ def as_intrinsics_matrix(intrinsics):
     K[1, 2] = intrinsics[3]
     return K
 
-def from_intrinsics_matrix(K: torch.Tensor) -> tuple[float, float, float, float]:
+def from_intrinsics_matrix(K: torch.Tensor) -> 'tuple[float, float, float, float]':
     '''
     Get fx, fy, cx, cy from the intrinsics matrix
     
@@ -95,75 +95,6 @@ def readEXR_onlydepth(filename):
 
     return Y
 
-
-class R2RDataset(GradSLAMDataset):
-    def __init__(
-        self,
-        config_dict,
-        basedir,
-        sequence,
-        stride: Optional[int] = None,
-        start: Optional[int] = 0,
-        end: Optional[int] = -1,
-        desired_height: Optional[int] = 224,
-        desired_width: Optional[int] = 224,
-        load_embeddings: Optional[bool] = False,
-        embedding_dir: Optional[str] = "embeddings",
-        embedding_dim: Optional[int] = 512,
-        relative_pose: bool = False, # If True, the pose is relative to the first frame
-        scanId, # you need enter scan ID
-        **kwargs,
-    ):
-        self.input_folder = os.path.join(basedir, sequence)
-        self.pose_path = None
-        super().__init__(
-            config_dict,
-            stride=stride,
-            start=start,
-            end=end,
-            desired_height=desired_height,
-            desired_width=desired_width,
-            load_embeddings=load_embeddings,
-            embedding_dir=embedding_dir,
-            embedding_dim=embedding_dim,
-            **kwargs,
-        )
-
-    def get_filepaths(self):
-
-        color_paths = natsorted(glob.glob(f"{self.input_folder}/{self.scanId}/matterport_skybox_images/*.jpg"))
-        depth_paths = natsorted(glob.glob(f"{self.input_folder}/{self.scanId}/undistorted_depth_images/*.png"))
-        embedding_paths = None
-        if self.load_embeddings:
-            embedding_paths = natsorted(
-                glob.glob(f"{self.input_folder}/{self.embedding_dir}/*.pt")
-            )
-
-        # color_paths = natsorted(glob.glob(f"{self.input_folder}/color/*.jpg"))
-        # depth_paths = natsorted(glob.glob(f"{self.input_folder}/depth/*.png"))
-        # embedding_paths = None
-        # if self.load_embeddings:
-        #     embedding_paths = natsorted(
-        #         glob.glob(f"{self.input_folder}/{self.embedding_dir}/*.pt")
-        #     )
-        return color_paths, depth_paths, embedding_paths
-
-    def load_poses(self):
-
-        config = ConfigParser()
-        poses = []
-
-        # poses = []
-        # posefiles = natsorted(glob.glob(f"{self.input_folder}/pose/*.txt"))
-        # for posefile in posefiles:
-        #     _pose = torch.from_numpy(np.loadtxt(posefile))
-        #     poses.append(_pose)
-        return poses
-
-    def read_embedding_from_file(self, embedding_file_path):
-        print(embedding_file_path)
-        embedding = torch.load(embedding_file_path, map_location="cpu")
-        return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
 
 
 class GradSLAMDataset(torch.utils.data.Dataset):
@@ -415,6 +346,146 @@ class GradSLAMDataset(torch.utils.data.Dataset):
             # self.retained_inds[index].item(),
         )
 
+
+class R2RDataset(GradSLAMDataset):
+    def __init__(
+        self,
+        config_dict,
+        basedir,
+        sequence, # the scan_id
+        stride: Optional[int] = None,
+        start: Optional[int] = 0,
+        end: Optional[int] = -1,
+        desired_height: Optional[int] = 224,
+        desired_width: Optional[int] = 224,
+        load_embeddings: Optional[bool] = False,
+        embedding_dir: Optional[str] = "embeddings",
+        embedding_dim: Optional[int] = 512,
+        relative_pose: bool = False, # If True, the pose is relative to the first frame
+        **kwargs,
+    ):
+        self.input_folder = os.path.join(basedir, sequence)
+        self.pose_path = os.path.join(self.input_folder, "undistorted_camera_parameters", sequence + ".conf")
+
+        self.intrinsics_matrix = []
+        self.intrinsics_matrix = self.get_intrinsic_matrix()
+
+
+        super().__init__(
+            config_dict,
+            stride=stride,
+            start=start,
+            end=end,
+            desired_height=desired_height,
+            desired_width=desired_width,
+            load_embeddings=load_embeddings,
+            embedding_dir=embedding_dir,
+            embedding_dim=embedding_dim,
+            **kwargs,
+        )
+
+    def get_c_d_p_i(self):
+        color_paths = []
+        depth_paths = []
+        intrinsics_matrix = []
+        poses = []
+        last_intrinsics_matrix = None
+
+        with open(self.pose_path, 'r') as file:
+            for line in file:
+                if line.startswith('scan'):
+                    parts = line.split()
+                    depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
+                    color_paths.append(os.path.join(self.input_folder, "undistorted_rgb_images", parts[2]))
+                    poses.append([float(i) for i in parts[3:19]])
+                    if last_intrinsics_matrix is not None:
+                        intrinsics_matrix.append(last_intrinsics_matrix)
+                elif line.startswith('intrinsics_matrix'):
+                    parts = line.split()
+                    last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+
+
+        return color_paths, depth_paths, poses, intrinsics_matrix
+
+    def get_intrinsic_matrix(self):
+
+        _, _, _, intrinsic_matrix = self.get_c_d_p_i()
+
+        return intrinsic_matrix
+
+    def get_filepaths(self):
+
+        color_paths, depth_paths, _, _ = self.get_c_d_p_i()
+        embedding_paths = []
+
+        return color_paths, depth_paths, embedding_paths
+
+    def load_poses(self):
+
+        _, _, poses, _ = self.get_c_d_p_i()
+
+        return poses
+
+    # def read_embedding_from_file(self, embedding_file_path):
+    #     print(embedding_file_path)
+    #     embedding = torch.load(embedding_file_path, map_location="cpu")
+    #     return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
+
+    def __getitem__(self, index):
+        color_path = self.color_paths[index]
+        depth_path = self.depth_paths[index]
+        color = np.asarray(imageio.imread(color_path), dtype=float)
+        color = self._preprocess_color(color)
+        color = torch.from_numpy(color)
+        if ".png" in depth_path:
+            # depth_data = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+            depth = np.asarray(imageio.imread(depth_path), dtype=np.int64)
+        elif ".exr" in depth_path:
+            depth = readEXR_onlydepth(depth_path)
+        elif ".npy" in depth_path:
+            depth = np.load(depth_path)
+        else:
+            raise NotImplementedError
+        
+        intrinsics_matrix = self.intrinsics_matrix[index]
+
+        # K = as_intrinsics_matrix([self.fx, self.fy, self.cx, self.cy])
+        K = as_intrinsics_matrix(intrinsics_matrix)
+        K = torch.from_numpy(K)
+
+        if self.distortion is not None:
+            # undistortion is only applied on color image, not depth!
+            color = cv2.undistort(color, K, self.distortion)
+
+        depth = self._preprocess_depth(depth)
+        depth = torch.from_numpy(depth)
+
+        K = datautils.scale_intrinsics(
+            K, self.height_downsample_ratio, self.width_downsample_ratio
+        )
+        intrinsics = torch.eye(4).to(K)
+        intrinsics[:3, :3] = K
+
+        pose = self.transformed_poses[index]
+
+        if self.load_embeddings:
+            embedding = self.read_embedding_from_file(self.embedding_paths[index])
+            return (
+                color.to(self.device).type(self.dtype),
+                depth.to(self.device).type(self.dtype),
+                intrinsics.to(self.device).type(self.dtype),
+                pose.to(self.device).type(self.dtype),
+                embedding.to(self.device),  # Allow embedding to be another dtype
+                # self.retained_inds[index].item(),
+            )
+
+        return (
+            color.to(self.device).type(self.dtype),
+            depth.to(self.device).type(self.dtype),
+            intrinsics.to(self.device).type(self.dtype),
+            pose.to(self.device).type(self.dtype),
+            # self.retained_inds[index].item(),
+        )
 
 class ICLDataset(GradSLAMDataset):
     def __init__(
