@@ -343,6 +343,7 @@ def process_features(proc_id, out_queue, scanvp_list, args):
     gpu_count = torch.cuda.device_count()
     local_rank = proc_id % gpu_count
     torch.cuda.set_device('cuda:{}'.format(local_rank))
+    
     # Set up the simulator
     sim = build_simulator(args.connectivity_dir, args.scan_dir)
 

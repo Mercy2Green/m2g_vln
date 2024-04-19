@@ -787,27 +787,16 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             #     frames.append(annotated_image)
             
             # Convert the detections to a dict. The elements are in np.array
-            # results = {
-            #     "xyxy": detections.xyxy, # data type is np.array
-            #     "confidence": detections.confidence, # data type is np.array
-            #     "class_id": detections.class_id, # data type is np.array
-            #     "mask": detections.mask, # data type is np.array
-            #     "classes": classes, # data type is list
-            #     "image_crops": image_crops, # data type is list
-            #     "image_feats": image_feats, # data type is np.array
-            #     "text_feats": text_feats, # data type is np.array
-            # }
             results = {
-                "xyxy": detections.xyxy.tolist(), # data type is list
-                "confidence": detections.confidence.tolist(), # data type is list
-                "class_id": detections.class_id.tolist(), # data type is list
-                "mask": detections.mask.tolist(), # data type is list
+                "xyxy": detections.xyxy, # data type is np.array
+                "confidence": detections.confidence, # data type is np.array
+                "class_id": detections.class_id, # data type is np.array
+                "mask": detections.mask, # data type is np.array
                 "classes": classes, # data type is list
                 "image_crops": image_crops, # data type is list
-                "image_feats": image_feats.tolist(), # data type is list
-                "text_feats": text_feats.tolist(), # data type is list
+                "image_feats": image_feats, # data type is np.array
+                "text_feats": text_feats, # data type is np.array
             }
-            
             
             if args.class_set in ["ram", "tag2text"]:
                 results["tagging_caption"] = caption
@@ -815,7 +804,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             
             results_list.append(results)
 
-        out_queue.put((scan_id, viewpoint_id, results_list))
+        out_queue.put((scan_id, viewpoint_id, results_list, global_classes))
 
     out_queue.put(None)
  
@@ -854,75 +843,33 @@ def build_feature_file(args): # main funcution
     progress_bar.start()
 
 
-    # # Convert the detections to a dict. The elements are in np.array
-    # results = {
-    #     "xyxy": detections.xyxy,
-    #     "confidence": detections.confidence,
-    #     "class_id": detections.class_id,
-    #     "mask": detections.mask,
-    #     "classes": classes,
-    #     "image_crops": image_crops,
-    #     "image_feats": image_feats,
-    #     "text_feats": text_feats,
-    # }
-    
-    # if args.class_set in ["ram", "tag2text"]:
-    #     results["tagging_caption"] = caption
-    #     results["tagging_text_prompt"] = text_prompt
-    
-    # results_list.append(results)
+    res = out_queue.get()
 
-    # I want to save the results_list. One results_list is corresponed one scan and viewpoint_id.
-    
-    with h5py.File(args.output_file, 'w') as outf:
-        while num_finished_workers < num_workers:
-            res = out_queue.get()
-            if res is None:
-                num_finished_workers += 1
-            else:
-                scan_id, viewpoint_id, results = res
-                key = '%s_%s'%(scan_id, viewpoint_id)
-                
-                # Convert each dict in results_list to JSON and then to bytes
-                results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
+    if res is None:
+        num_finished_workers += 1
+    else:
+        scan_id, viewpoint_id, results_list, global_classes = res
 
-                # Create a dataset for this key and store the results_list in it
-                ds = outf.create_dataset(key, (len(results_list_bytes), 1), dtype=h5py.string_dtype(encoding='utf-8'))
+        print(viewpoint_id)
 
-                for i, result_bytes in enumerate(results_list_bytes):
-                    ds[i] = result_bytes
+        save_name = '%s_%s'%(scan_id, viewpoint_id)
 
-                outf[key].attrs['scanId'] = scan_id
-                outf[key].attrs['viewpointId'] = viewpoint_id
+        detections_save_path_save_name = args.output_dir + f"/gsa_detections_{save_name}"
+        print(detections_save_path_save_name)
+        detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
+        os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
 
-                num_finished_vps += 1
-                progress_bar.update(num_finished_vps)
+        # save the detections using pickle
+        # Here we use gzip to compress the file, which could reduce the file size by 500x
+        with gzip.open(detections_save_path_gz, "wb") as f:
+            pickle.dump(results_list, f)
+        
+        # save global classes
+        with open(args.output_dir + f"/gsa_classes_{save_name}.json", "w") as f:
+            json.dump(list(global_classes), f)
 
-# import h5py
-# import json
- 
-# # 要存储的字典列表
-# dict_list = [
-#     {'key1': 'value1', 'key2': 'value2'},
-#     {'key1': 'value3', 'key2': 'value4'}
-# ]
- 
-# # 将字典转换为JSON字符串
-# dict_list_json = [json.dumps(d) for d in dict_list]
- 
-# # 创建HDF5文件并写入数据
-# with h5py.File('data.h5', 'w') as f:
-#     f.create_dataset('dict_list', data=dict_list_json)
- 
-# # 从HDF5文件读取数据
-# with h5py.File('data.h5', 'r') as f:
-#     loaded_dict_list_json = f['dict_list'][:]
- 
-# # 将JSON字符串转换回字典
-# loaded_dict_list = [json.loads(d) for d in loaded_dict_list_json]
- 
-# # 输出加载后的字典列表
-# print(loaded_dict_list)
+        num_finished_vps += 1
+        progress_bar.update(num_finished_vps)
 
 
     # with h5py.File(args.output_file, 'w') as outf:
@@ -931,13 +878,15 @@ def build_feature_file(args): # main funcution
     #         if res is None:
     #             num_finished_workers += 1
     #         else:
-    #             scan_id, viewpoint_id, result_list = res
+    #             scan_id, viewpoint_id, results_list = res
     #             key = '%s_%s'%(scan_id, viewpoint_id)
                 
-    #             data = np.array(result_list)  # Convert result_list to numpy array
-    #             print(data)
-    #             outf.create_dataset(key, data=data, compression='gzip')
-    #             outf[key][...] = data
+    #             # Convert each dict in results_list to JSON and then to bytes
+    #             results_list_json = [json.dumps(results) for results in results_list]
+
+    #             # Create a dataset for this key and store the results_list in it
+    #             outf.create_dataset(key, data = results_list_json)
+
     #             outf[key].attrs['scanId'] = scan_id
     #             outf[key].attrs['viewpointId'] = viewpoint_id
 
@@ -955,7 +904,7 @@ def build_feature_file(args): # main funcution
 
 if __name__ == '__main__':
 
-    torch.multiprocessing.set_start_method('spawn')
+    # torch.multiprocessing.set_start_method('spawn')
     parser = get_parser()
     args = parser.parse_args()
     build_feature_file(args)

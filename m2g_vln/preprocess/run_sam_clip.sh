@@ -3,7 +3,7 @@ python m2g_vln/get_object_feature.py \
     --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/test \
     --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
     --output_file /home/lg1/peteryu_workspace/output/object_feature/obj_feats_R2R.hdf5 \
-    --output_dir /home/lg1/peteryu_workspace/output/object_feature \
+    --output_dir /home/lg1/peteryu_workspace/output/object_feature/gsa_result \
     --num_workers 1 \
     --class_set none 
 
