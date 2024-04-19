@@ -843,6 +843,27 @@ def build_feature_file(args): # main funcution
     progress_bar.start()
 
 
+    # # Convert the detections to a dict. The elements are in np.array
+    # results = {
+    #     "xyxy": detections.xyxy,
+    #     "confidence": detections.confidence,
+    #     "class_id": detections.class_id,
+    #     "mask": detections.mask,
+    #     "classes": classes,
+    #     "image_crops": image_crops,
+    #     "image_feats": image_feats,
+    #     "text_feats": text_feats,
+    # }
+    
+    # if args.class_set in ["ram", "tag2text"]:
+    #     results["tagging_caption"] = caption
+    #     results["tagging_text_prompt"] = text_prompt
+    
+    # results_list.append(results)
+
+    # I want to save the results_list. One results_list is corresponed one scan and viewpoint_id.
+    
+
     with h5py.File(args.output_file, 'w') as outf:
         while num_finished_workers < num_workers:
             res = out_queue.get()
@@ -853,6 +874,7 @@ def build_feature_file(args): # main funcution
                 key = '%s_%s'%(scan_id, viewpoint_id)
                 
                 data = np.array(result_list)  # Convert result_list to numpy array
+                print(data)
                 outf.create_dataset(key, data=data, compression='gzip')
                 outf[key][...] = data
                 outf[key].attrs['scanId'] = scan_id
