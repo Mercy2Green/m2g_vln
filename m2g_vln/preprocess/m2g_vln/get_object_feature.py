@@ -61,10 +61,13 @@ else:
     raise ValueError("Please set the GSA_PATH environment variable to the path of the GSA repo. ")
     
 import sys
-TAG2TEXT_PATH = os.path.join(GSA_PATH, "Tag2Text")
+
+if "TAG2TEXT_PATH" in os.environ:
+    TAG2TEXT_PATH = os.environ["TAG2TEXT_PATH"]
+
 EFFICIENTSAM_PATH = os.path.join(GSA_PATH, "EfficientSAM")
 sys.path.append(GSA_PATH) # This is needed for the following imports in this file
-sys.path.append(TAG2TEXT_PATH) # This is needed for some imports in the Tag2Text files
+# sys.path.append(TAG2TEXT_PATH) # This is needed for some imports in the Tag2Text files
 sys.path.append(EFFICIENTSAM_PATH)
 try:
     # from Tag2Text.models import tag2text
@@ -131,7 +134,9 @@ def get_parser() -> argparse.ArgumentParser:
                         help="If set, add background classes (wall, floor, ceiling) to the class set. ")
     parser.add_argument("--accumu_classes", action="store_true",
                         help="if set, the class set will be accumulated over frames")
-
+    parser.add_argument("--detector", type=str, default="dino", 
+                        choices=["yolo", "dino"], 
+                        help="When given classes, whether to use YOLO-World or GroundingDINO to detect objects. ")
     parser.add_argument("--sam_variant", type=str, default="sam",
                         choices=['fastsam', 'mobilesam', "lighthqsam"])
     
@@ -595,14 +600,14 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
     #     frames = []
 
 
-    # count_number = 1
+    count_number = 1
 
     for scan_id, viewpoint_id in scanvp_list:
 
-        # # print the progress for moniter in percentage
-        # print('scan_id: %s, viewpoint_id: %s' % (scan_id, viewpoint_id))
-        # print('percentage: %d/%d' % (count_number, len(scanvp_list)))
-        # count_number += 1
+        # print the progress for moniter in percentage
+        print('scan_id: %s, viewpoint_id: %s' % (scan_id, viewpoint_id))
+        print('Proc_id: %d, percentage: %f' % (proc_id, (count_number/len(scanvp_list) * 100)))
+        count_number += 1
 
         # Loop all discretized views from this location
         images = []
@@ -780,8 +785,8 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
                     annotated_image_caption = vis_result_slow_caption(
                         image_rgb, detections.mask, detections.xyxy, labels, caption, text_prompt)
                     Image.fromarray(annotated_image_caption).save(vis_save_path)
-                else:
-                    cv2.imwrite(vis_save_path, annotated_image)
+                # else:
+                #     # cv2.imwrite(vis_save_path, annotated_image)
             
             # if args.save_video:
             #     frames.append(annotated_image)
@@ -807,9 +812,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
         save_name = '%s_%s'%(scan_id, viewpoint_id)
 
-        detections_save_path_save_name = args.output_dir + f"/gsa_detections_{save_name}"
-
-        print(detections_save_path_save_name)
+        detections_save_path_save_name = args.output_dir + f"/{scan_id}" + f"/gsa_detections_{save_name}"
 
         detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
         os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
@@ -820,8 +823,9 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             pickle.dump(results_list, f)
         
         # save global classes
-        with open(args.output_dir + f"/gsa_classes_{save_name}.json", "w") as f:
+        with open(args.output_dir + f"/{scan_id}" + f"/gsa_classes_{save_name}.json", "w") as f:
             json.dump(list(global_classes), f)
+        
 
 
 
