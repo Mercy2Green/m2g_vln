@@ -887,6 +887,21 @@ def build_feature_file(args): # main funcution
                 num_finished_vps += 1
                 progress_bar.update(num_finished_vps)
 
+# Traceback (most recent call last):
+#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 925, in <module>
+#     build_feature_file(args)
+#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 876, in build_feature_file
+#     results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
+#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 876, in <listcomp>
+#     results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/__init__.py", line 231, in dumps
+#     return _default_encoder.encode(obj)
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 199, in encode
+#     chunks = self.iterencode(o, _one_shot=True)
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 257, in iterencode
+#     return _iterencode(o, 0)
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 179, in default
+#     raise TypeError(f'Object of type {o.__class__.__name__} '
 
 
     # with h5py.File(args.output_file, 'w') as outf:
