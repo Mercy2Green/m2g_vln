@@ -787,16 +787,27 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             #     frames.append(annotated_image)
             
             # Convert the detections to a dict. The elements are in np.array
+            # results = {
+            #     "xyxy": detections.xyxy, # data type is np.array
+            #     "confidence": detections.confidence, # data type is np.array
+            #     "class_id": detections.class_id, # data type is np.array
+            #     "mask": detections.mask, # data type is np.array
+            #     "classes": classes, # data type is list
+            #     "image_crops": image_crops, # data type is list
+            #     "image_feats": image_feats, # data type is np.array
+            #     "text_feats": text_feats, # data type is np.array
+            # }
             results = {
-                "xyxy": detections.xyxy, # data type is np.array
-                "confidence": detections.confidence, # data type is np.array
-                "class_id": detections.class_id, # data type is np.array
-                "mask": detections.mask, # data type is np.array
+                "xyxy": detections.xyxy.tolist(), # data type is list
+                "confidence": detections.confidence.tolist(), # data type is list
+                "class_id": detections.class_id.tolist(), # data type is list
+                "mask": detections.mask.tolist(), # data type is list
                 "classes": classes, # data type is list
                 "image_crops": image_crops, # data type is list
-                "image_feats": image_feats, # data type is np.array
-                "text_feats": text_feats, # data type is np.array
+                "image_feats": image_feats.tolist(), # data type is list
+                "text_feats": text_feats.tolist(), # data type is list
             }
+            
             
             if args.class_set in ["ram", "tag2text"]:
                 results["tagging_caption"] = caption
