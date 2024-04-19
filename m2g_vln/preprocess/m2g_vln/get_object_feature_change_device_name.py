@@ -489,7 +489,7 @@ def build_Grounding_DINO_model():
     grounding_dino_model = Model(
         model_config_path=GROUNDING_DINO_CONFIG_PATH, 
         model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH, 
-        device= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device=     progress_bar.finish()
     )
     return grounding_dino_model
 

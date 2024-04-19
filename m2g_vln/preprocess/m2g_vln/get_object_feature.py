@@ -825,34 +825,32 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
 
 
-def worker(proc_id, out_queue, scanvp_list, args):
-    # Initialize CUDA context here, if necessary
+def build_feature_file(args): # main funcution
 
-    
-    # torch.cuda.set_device(proc_id)
 
-    # Call your process_features function here
-    process_features(proc_id, out_queue, scanvp_list, args)
-
-def build_feature_file(args):
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
-    scanvp_list = load_viewpoint_ids(args.connectivity_dir)
+    scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
 
+    # workers load data 
     num_workers = min(args.num_workers, len(scanvp_list))
-    num_data_per_worker = len(scanvp_list) // num_workers
+    num_data_per_worker = len(scanvp_list) // num_workers # how many data per worker
 
     out_queue = mp.Queue()
 
     res = []
 
     processes = []
-    for proc_id in range(num_workers):
-        sidx = proc_id * num_data_per_worker
-        eidx = None if proc_id == num_workers - 1 else sidx + num_data_per_worker
+    for proc_id in range(num_workers): # proc_id is the index of workers
+        sidx = proc_id * num_data_per_worker # start index
+        eidx = None if proc_id == num_workers - 1 else sidx + num_data_per_worker # end index
 
-        # Use mp.spawn to start the worker processes
-        mp.spawn(worker, args=(proc_id, out_queue, scanvp_list[sidx: eidx], args), nprocs=1)
+        process = mp.Process( # process into the process_features function
+            target=process_features,
+            args=(proc_id, out_queue, scanvp_list[sidx: eidx], args) 
+        )
+        process.start()
+        processes.append(process)
 
     for process in processes:
         process.join()

@@ -4,7 +4,7 @@ python m2g_vln/get_object_feature.py \
     --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
     --output_file /home/lg1/peteryu_workspace/output/object_feature/obj_feats_R2R.hdf5 \
     --output_dir /home/lg1/peteryu_workspace/output/object_feature/gsa_result \
-    --num_workers 1 \
+    --num_workers 4 \
     --class_set none 
 
 
