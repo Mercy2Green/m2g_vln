@@ -788,14 +788,14 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             
             # Convert the detections to a dict. The elements are in np.array
             results = {
-                "xyxy": detections.xyxy,
-                "confidence": detections.confidence,
-                "class_id": detections.class_id,
-                "mask": detections.mask,
-                "classes": classes,
-                "image_crops": image_crops,
-                "image_feats": image_feats,
-                "text_feats": text_feats,
+                "xyxy": detections.xyxy, # data type is np.array
+                "confidence": detections.confidence, # data type is np.array
+                "class_id": detections.class_id, # data type is np.array
+                "mask": detections.mask, # data type is np.array
+                "classes": classes, # data type is list
+                "image_crops": image_crops, # data type is list
+                "image_feats": image_feats, # data type is np.array
+                "text_feats": text_feats, # data type is np.array
             }
             
             if args.class_set in ["ram", "tag2text"]:
