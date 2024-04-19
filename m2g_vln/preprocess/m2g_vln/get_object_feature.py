@@ -825,33 +825,34 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
 
 
-def build_feature_file(args): # main funcution
+def worker(proc_id, out_queue, scanvp_list, args):
+    # Initialize CUDA context here, if necessary
 
+    
+    # torch.cuda.set_device(proc_id)
 
+    # Call your process_features function here
+    process_features(proc_id, out_queue, scanvp_list, args)
+
+def build_feature_file(args):
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
-    scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
+    scanvp_list = load_viewpoint_ids(args.connectivity_dir)
 
-    # workers load data 
     num_workers = min(args.num_workers, len(scanvp_list))
-    num_data_per_worker = len(scanvp_list) // num_workers # how many data per worker
+    num_data_per_worker = len(scanvp_list) // num_workers
 
     out_queue = mp.Queue()
 
     res = []
 
     processes = []
-    for proc_id in range(num_workers): # proc_id is the index of workers
-        sidx = proc_id * num_data_per_worker # start index
-        eidx = None if proc_id == num_workers - 1 else sidx + num_data_per_worker # end index
+    for proc_id in range(num_workers):
+        sidx = proc_id * num_data_per_worker
+        eidx = None if proc_id == num_workers - 1 else sidx + num_data_per_worker
 
-        process = mp.Process( # process into the process_features function
-            target=process_features,
-            args=(proc_id, out_queue, scanvp_list[sidx: eidx], args) 
-        )
-        process.start()
-        processes.append(process)
-    
+        # Use mp.spawn to start the worker processes
+        mp.spawn(worker, args=(proc_id, out_queue, scanvp_list[sidx: eidx], args), nprocs=1)
 
     for process in processes:
         process.join()
@@ -872,7 +873,7 @@ def build_feature_file(args): # main funcution
 
 if __name__ == '__main__':
 
-    # torch.multiprocessing.set_start_method('spawn')
+    torch.multiprocessing.set_start_method('spawn')
     parser = get_parser()
     args = parser.parse_args()
     build_feature_file(args)
