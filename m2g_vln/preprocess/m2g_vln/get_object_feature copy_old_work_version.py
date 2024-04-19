@@ -489,6 +489,8 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
     gpu_count = torch.cuda.device_count()
     local_rank = proc_id % gpu_count
     torch.cuda.set_device('cuda:{}'.format(local_rank))
+
+    args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
  
     results_list = []
 
@@ -804,30 +806,14 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             
             results_list.append(results)
 
+        out_queue.put((scan_id, viewpoint_id, results_list, global_classes))
 
-        save_name = '%s_%s'%(scan_id, viewpoint_id)
-
-        detections_save_path_save_name = args.output_dir + f"/gsa_detections_{save_name}"
-
-        print(detections_save_path_save_name)
-
-        detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
-        os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
-
-        # save the detections using pickle
-        # Here we use gzip to compress the file, which could reduce the file size by 500x
-        with gzip.open(detections_save_path_gz, "wb") as f:
-            pickle.dump(results_list, f)
-        
-        # save global classes
-        with open(args.output_dir + f"/gsa_classes_{save_name}.json", "w") as f:
-            json.dump(list(global_classes), f)
-
+    out_queue.put(None)
+ 
 
 
 def build_feature_file(args): # main funcution
-
-
+    
     os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
     scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
@@ -852,20 +838,46 @@ def build_feature_file(args): # main funcution
         process.start()
         processes.append(process)
     
+    num_finished_workers = 0
+    num_finished_vps = 0
+
+    progress_bar = ProgressBar(maxval=len(scanvp_list))
+    progress_bar.start()
+
+
+    res = out_queue.get()
+
+    if res is None:
+        num_finished_workers += 1
+    else:
+        scan_id, viewpoint_id, results_list, global_classes = res
+
+        print(viewpoint_id)
+
+        save_name = '%s_%s'%(scan_id, viewpoint_id)
+
+        detections_save_path_save_name = args.output_dir + f"/gsa_detections_{save_name}"
+        print(detections_save_path_save_name)
+        detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
+        os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
+
+        # save the detections using pickle
+        # Here we use gzip to compress the file, which could reduce the file size by 500x
+        with gzip.open(detections_save_path_gz, "wb") as f:
+            pickle.dump(results_list, f)
+        
+        # save global classes
+        with open(args.output_dir + f"/gsa_classes_{save_name}.json", "w") as f:
+            json.dump(list(global_classes), f)
+
+        num_finished_vps += 1
+        progress_bar.update(num_finished_vps)
+
+
+    progress_bar.finish()
 
     for process in processes:
         process.join()
-
-    
-    # os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
-
-    # scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
-
-    # proc_id = 0
-    # output_queue = []
-    
-
-    # process_features(proc_id, output_queue, scanvp_list, args)
 
 
     

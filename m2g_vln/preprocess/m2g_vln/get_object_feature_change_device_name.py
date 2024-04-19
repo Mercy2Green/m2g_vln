@@ -137,7 +137,7 @@ def get_parser() -> argparse.ArgumentParser:
     
     # parser.add_argument("--save_video", action="store_true")
     
-    parser.add_argument("--device", type=str, default="cuda")
+    # parser.add_argument("--device", type=str, default="cuda")
     
     parser.add_argument("--use_slow_vis", action="store_true", 
                         help="If set, use vis_result_slow_caption. Only effective when using ram/tag2text. ")
@@ -234,13 +234,13 @@ def compute_clip_features(image, detections, clip_model, clip_preprocess, clip_t
         cropped_image = image.crop((x_min, y_min, x_max, y_max))
         
         # Get the preprocessed image for clip from the crop 
-        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to("cuda")
+        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to(device)
 
         crop_feat = clip_model.encode_image(preprocessed_image)
         crop_feat /= crop_feat.norm(dim=-1, keepdim=True)
         
         class_id = detections.class_id[idx]
-        tokenized_text = clip_tokenizer([classes[class_id]]).to("cuda")
+        tokenized_text = clip_tokenizer([classes[class_id]]).to(device)
         text_feat = clip_model.encode_text(tokenized_text)
         text_feat /= text_feat.norm(dim=-1, keepdim=True)
         
@@ -460,13 +460,13 @@ def compute_clip_features_sam(image, detections, clip_model, clip_preprocess, cl
         cropped_image = image.crop((x_min, y_min, x_max, y_max))
         
         # Get the preprocessed image for clip from the crop 
-        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to("cuda")
+        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to(device)
 
         crop_feat = clip_model.encode_image(preprocessed_image)
         crop_feat /= crop_feat.norm(dim=-1, keepdim=True)
         
         class_id = detections.class_id[idx]
-        tokenized_text = clip_tokenizer([classes[class_id]]).to("cuda")
+        tokenized_text = clip_tokenizer([classes[class_id]]).to(device)
         text_feat = clip_model.encode_text(tokenized_text)
         text_feat /= text_feat.norm(dim=-1, keepdim=True)
         
@@ -483,35 +483,82 @@ def compute_clip_features_sam(image, detections, clip_model, clip_preprocess, cl
 
     return image_crops, image_feats, text_feats
 
+
+def build_Grounding_DINO_model():
+
+    grounding_dino_model = Model(
+        model_config_path=GROUNDING_DINO_CONFIG_PATH, 
+        model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH, 
+        device= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    )
+    return grounding_dino_model
+
+def build_SAM_model(args: argparse.Namespace):
+    ### Initialize the SAM model ###
+
+    device_SAM= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    if args.class_set == "none":
+        mask_generator = get_sam_mask_generator(args.sam_variant, device_SAM)
+        return mask_generator, device_SAM
+    else:
+        sam_predictor = get_sam_predictor(args.sam_variant, device_SAM)
+        return sam_predictor, device_SAM
+
+def build_CLIP_model():
+
+    device_CLIP = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+        "ViT-H-14", "laion2b_s32b_b79k"
+    )
+    clip_model = clip_model.to(device_CLIP)
+    clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+    return clip_model, clip_preprocess, clip_tokenizer, device_CLIP
+    
+
+
 def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
     print('start proc_id: %d' % proc_id)
     gpu_count = torch.cuda.device_count()
     local_rank = proc_id % gpu_count
     torch.cuda.set_device('cuda:{}'.format(local_rank))
+
  
+
     results_list = []
 
     ### Initialize the Grounding DINO model ###
-    grounding_dino_model = Model(
-        model_config_path=GROUNDING_DINO_CONFIG_PATH, 
-        model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH, 
-        device=args.device
-    )
+
+    # grounding_dino_model = Model(
+    #     model_config_path=GROUNDING_DINO_CONFIG_PATH, 
+    #     model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH, 
+    #     device= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # )
+
+    grounding_dino_model = build_Grounding_DINO_model(args)
+
 
     ### Initialize the SAM model ###
+    # if args.class_set == "none":
+    #     mask_generator = get_sam_mask_generator(args.sam_variant, args.device)
+    # else:
+    #     sam_predictor = get_sam_predictor(args.sam_variant, args.device)
     if args.class_set == "none":
-        mask_generator = get_sam_mask_generator(args.sam_variant, args.device)
+        mask_generator, device_SAM = build_SAM_model(args)
     else:
-        sam_predictor = get_sam_predictor(args.sam_variant, args.device)
+        sam_predictor, device_SAM = build_SAM_model(args)
     
     ###
     # Initialize the CLIP model
-    clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
-        "ViT-H-14", "laion2b_s32b_b79k"
-    )
-    clip_model = clip_model.to(args.device)
-    clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+    # clip_model, _, clip_preprocess = open_clip.create_model_and_transforms(
+    #     "ViT-H-14", "laion2b_s32b_b79k"
+    # )
+    # clip_model = clip_model.to(args.device)
+    # clip_tokenizer = open_clip.get_tokenizer("ViT-H-14")
+
+    clip_model, clip_preprocess, clip_tokenizer, device_CLIP = build_CLIP_model()
 
     # Set up the simulator
     sim = build_simulator(args.connectivity_dir, args.scan_dir)
@@ -560,8 +607,10 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             tagging_model = ram(pretrained=RAM_CHECKPOINT_PATH,
                                          image_size=384,
                                          vit='swin_l')
-            
-        tagging_model = tagging_model.eval().to(args.device)
+        
+        tagging_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        tagging_model = tagging_model.eval().to(tagging_device)
         
         # initialize Tag2Text
         tagging_transform = TS.Compose([
@@ -642,7 +691,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             ### Tag2Text ###
             if args.class_set in ["ram", "tag2text"]:
                 raw_image = image_pil.resize((384, 384))
-                raw_image = tagging_transform(raw_image).unsqueeze(0).to(args.device)
+                raw_image = tagging_transform(raw_image).unsqueeze(0).to(tagging_device)
                 
                 if args.class_set == "ram":
                     res = inference_ram(raw_image , tagging_model)
@@ -697,7 +746,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
                     mask=mask,
                 )
                 image_crops, image_feats, text_feats = compute_clip_features(
-                    image_rgb, detections, clip_model, clip_preprocess, clip_tokenizer, classes, args.device)
+                    image_rgb, detections, clip_model, clip_preprocess, clip_tokenizer, classes, device_CLIP)
 
                 ### Visualize results ###
                 annotated_image, labels = vis_result_fast(
@@ -768,7 +817,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
                     # Compute and save the clip features of detections  
                     image_crops, image_feats, text_feats = compute_clip_features(
-                        image_rgb, detections, clip_model, clip_preprocess, clip_tokenizer, classes, args.device)
+                        image_rgb, detections, clip_model, clip_preprocess, clip_tokenizer, classes, device_CLIP)
                 else:
                     image_crops, image_feats, text_feats = [], [], []
                 
