@@ -863,25 +863,50 @@ def build_feature_file(args): # main funcution
 
     # I want to save the results_list. One results_list is corresponed one scan and viewpoint_id.
     
-
     with h5py.File(args.output_file, 'w') as outf:
         while num_finished_workers < num_workers:
             res = out_queue.get()
             if res is None:
                 num_finished_workers += 1
             else:
-                scan_id, viewpoint_id, result_list = res
+                scan_id, viewpoint_id, results = res
                 key = '%s_%s'%(scan_id, viewpoint_id)
                 
-                data = np.array(result_list)  # Convert result_list to numpy array
-                print(data)
-                outf.create_dataset(key, data=data, compression='gzip')
-                outf[key][...] = data
+                # Convert each dict in results_list to JSON and then to bytes
+                results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
+
+                # Create a dataset for this key and store the results_list in it
+                ds = outf.create_dataset(key, (len(results_list_bytes), 1), dtype=h5py.string_dtype(encoding='utf-8'))
+
+                for i, result_bytes in enumerate(results_list_bytes):
+                    ds[i] = result_bytes
+
                 outf[key].attrs['scanId'] = scan_id
                 outf[key].attrs['viewpointId'] = viewpoint_id
 
                 num_finished_vps += 1
                 progress_bar.update(num_finished_vps)
+
+
+
+    # with h5py.File(args.output_file, 'w') as outf:
+    #     while num_finished_workers < num_workers:
+    #         res = out_queue.get()
+    #         if res is None:
+    #             num_finished_workers += 1
+    #         else:
+    #             scan_id, viewpoint_id, result_list = res
+    #             key = '%s_%s'%(scan_id, viewpoint_id)
+                
+    #             data = np.array(result_list)  # Convert result_list to numpy array
+    #             print(data)
+    #             outf.create_dataset(key, data=data, compression='gzip')
+    #             outf[key][...] = data
+    #             outf[key].attrs['scanId'] = scan_id
+    #             outf[key].attrs['viewpointId'] = viewpoint_id
+
+    #             num_finished_vps += 1
+    #             progress_bar.update(num_finished_vps)
 
 
     progress_bar.finish()
