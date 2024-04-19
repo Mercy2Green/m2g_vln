@@ -1,13 +1,11 @@
 python m2g_vln/get_object_feature.py \
     --checkpoint_file_segment /home/lg1/peteryu_workspace/model/sam_vit_h_4b8939.pth \
-    --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/R2R \
-    --scan_dir /data/vln_datasets/matterport_skybox/v1/unzipped \
+    --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/test \
+    --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
     --output_file /home/lg1/peteryu_workspace/output/object_feature/obj_feats_R2R.hdf5 \
     --output_dir /home/lg1/peteryu_workspace/output/object_feature \
     --num_workers 1 \
-    --num_batches 1 \
     --class_set none 
-
 
 
 #     SCENE_NAME=room0

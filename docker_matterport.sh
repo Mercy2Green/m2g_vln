@@ -1,6 +1,6 @@
 #! /bin/bash
 
-export MATTERPORT_DATA_DIR=/data/vln_datasets/matterport_skybox/v1/unzipped
+export MATTERPORT_DATA_DIR=/data/vln_datasets/matterport3d/v1/unzipped
 
 export MATTERPORT_SIMULATOR_DIR=/home/lg1/peteryu_workspace/m2g_vln/Matterport3DSimulator_opencv4
 

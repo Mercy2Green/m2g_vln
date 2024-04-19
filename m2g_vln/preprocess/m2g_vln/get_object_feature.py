@@ -103,13 +103,13 @@ FOREGROUND_MINIMAL_CLASSES = [
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--dataset_root", type=Path, required=True,
-    )
-    parser.add_argument(
-        "--dataset_config", type=str, required=True,
-        help="This path may need to be changed depending on where you run this script. "
-    )
+    # parser.add_argument(
+    #     "--dataset_root", type=Path, required=True,
+    # )
+    # parser.add_argument(
+    #     "--dataset_config", type=str, required=True,
+    #     help="This path may need to be changed depending on where you run this script. "
+    # )
     
     # parser.add_argument("--scene_id", type=str, default="train_3")
     
@@ -483,109 +483,6 @@ def compute_clip_features_sam(image, detections, clip_model, clip_preprocess, cl
 
     return image_crops, image_feats, text_feats
 
-
-def compute_clip_features(image, detections, clip_model, clip_preprocess):
-
-    # padding = args.clip_padding  # Adjust the padding amount as needed
-    padding = 20  # Adjust the padding amount as needed
-    
-    # image_crops = []
-    image_feats = []
-    # text_feats = []
-
-    
-    for idx in range(len(detections.xyxy)):
-        # Get the crop of the mask with padding
-        x_min, y_min, x_max, y_max = detections.xyxy[idx]
-
-        # Check and adjust padding to avoid going beyond the image borders
-        image_width, image_height = image.size
-        left_padding = min(padding, x_min)
-        top_padding = min(padding, y_min)
-        right_padding = min(padding, image_width - x_max)
-        bottom_padding = min(padding, image_height - y_max)
-
-        # Apply the adjusted padding
-        x_min -= left_padding
-        y_min -= top_padding
-        x_max += right_padding
-        y_max += bottom_padding
-
-        cropped_image = image.crop((x_min, y_min, x_max, y_max))
-        
-        # Get the preprocessed image for clip from the crop 
-        preprocessed_image = clip_preprocess(cropped_image).unsqueeze(0).to("cuda")
-
-        crop_feat = clip_model.encode_image(preprocessed_image)
-        crop_feat /= crop_feat.norm(dim=-1, keepdim=True)
-        
-        # class_id = detections.class_id[idx]
-        # tokenized_text = clip_tokenizer([classes[class_id]]).to("cuda")
-        # text_feat = clip_model.encode_text(tokenized_text)
-        # text_feat /= text_feat.norm(dim=-1, keepdim=True)
-        
-        crop_feat = crop_feat.cpu().numpy().astype(np.float16)
-        # text_feat = text_feat.cpu().numpy()
-
-        # image_crops.append(cropped_image)
-        image_feats.append(crop_feat)
-        # text_feats.append(text_feat)
-        
-    # turn the list of feats into np matrices
-    image_feats = np.concatenate(image_feats, axis=0)
-    # text_feats = np.concatenate(text_feats, axis=0)
-    return image_feats
-
-def build_object_mask_extractor(checkpoint_file_segment=None): # using segement anything model
-
-    # build a Segment anything model and a CLIP model
-    device_segment = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    torch.set_grad_enabled(False)
-    model_segment = sam_model_registry['default'](checkpoint=checkpoint_file_segment).to(device_segment)
-    #output_mode = "coco_rle" if args.convert_to_rle else "binary_mask"
-    #amg_kwargs = get_amg_kwargs(args)
-    mask_generator = SamAutomaticMaskGenerator(
-            model_segment, 
-            points_per_side=12,
-            points_per_batch=144,
-            pred_iou_thresh=0.88,
-            stability_score_thresh=0.95,
-            crop_n_layers=0,
-            min_mask_region_area=100,
-            )
-
-    return mask_generator, device_segment
-
-def mask_extraction(model, image: np.ndarray):
-    results = model.generate(image)
-    mask = []
-    xyxy = []
-    conf = []
-    for r in results:
-        mask.append(r["segmentation"])
-        r_xyxy = r["bbox"].copy()
-        # Convert from xyhw format to xyxy format
-        r_xyxy[2] += r_xyxy[0]
-        r_xyxy[3] += r_xyxy[1]
-        xyxy.append(r_xyxy)
-        conf.append(r["predicted_iou"])
-    mask = np.array(mask)
-    xyxy = np.array(xyxy)
-    conf = np.array(conf)
-
-    return mask, xyxy, conf
-
-def detection_generate(mask, xyxy, conf):
-
-    detections = sv.Detections(
-        xyxy=xyxy,
-        confidence=conf,
-        class_id=np.zeros_like(conf).astype(int),
-        mask=mask,
-    )
-    return detections
-
-
 def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
     print('start proc_id: %d' % proc_id)
@@ -733,9 +630,14 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
             assert state.viewIndex == ix + 12
 
             image = np.array(state.rgb, copy=True) # in BGR channel
-            image_rgb = BGR_to_RGB(image)
-            image_rgb = Image.fromarray(image_rgb) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = BGR_to_RGB(image)
+            image_rgb = image #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             image_pil = Image.fromarray(image)
+
+            # image = np.array(state.rgb, copy=True)
+            # image = Image.fromarray(image)
+            # image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # image_pil = Image.fromarray(image_rgb)
 
             ### Tag2Text ###
             if args.class_set in ["ram", "tag2text"]:
@@ -801,7 +703,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
                 annotated_image, labels = vis_result_fast(
                     image, detections, classes, instance_random_color=True)
                 
-                cv2.imwrite(vis_save_path, annotated_image)
+                # cv2.imwrite(vis_save_path, annotated_image)
             else:
                 if args.detector == "dino":
                     # Using GroundingDINO to detect and SAM to segment
@@ -951,7 +853,7 @@ def build_feature_file(args): # main funcution
                 key = '%s_%s'%(scan_id, viewpoint_id)
                 
                 data = result_list
-                outf.create_dataset(key, data.shape, dtype='float', compression='gzip')
+                outf.create_dataset(key, data=data, dtype='dict', compression='gzip')
                 outf[key][...] = data
                 outf[key].attrs['scanId'] = scan_id
                 outf[key].attrs['viewpointId'] = viewpoint_id
@@ -969,7 +871,7 @@ def build_feature_file(args): # main funcution
 
 if __name__ == '__main__':
 
-
+    torch.multiprocessing.set_start_method('spawn')
     parser = get_parser()
     args = parser.parse_args()
     build_feature_file(args)
