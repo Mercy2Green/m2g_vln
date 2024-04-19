@@ -887,21 +887,31 @@ def build_feature_file(args): # main funcution
                 num_finished_vps += 1
                 progress_bar.update(num_finished_vps)
 
-# Traceback (most recent call last):
-#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 925, in <module>
-#     build_feature_file(args)
-#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 876, in build_feature_file
-#     results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
-#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 876, in <listcomp>
-#     results_list_bytes = [json.dumps(result).encode('utf-8') for result in results]
-#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/__init__.py", line 231, in dumps
-#     return _default_encoder.encode(obj)
-#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 199, in encode
-#     chunks = self.iterencode(o, _one_shot=True)
-#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 257, in iterencode
-#     return _iterencode(o, 0)
-#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/json/encoder.py", line 179, in default
-#     raise TypeError(f'Object of type {o.__class__.__name__} '
+# import h5py
+# import json
+ 
+# # 要存储的字典列表
+# dict_list = [
+#     {'key1': 'value1', 'key2': 'value2'},
+#     {'key1': 'value3', 'key2': 'value4'}
+# ]
+ 
+# # 将字典转换为JSON字符串
+# dict_list_json = [json.dumps(d) for d in dict_list]
+ 
+# # 创建HDF5文件并写入数据
+# with h5py.File('data.h5', 'w') as f:
+#     f.create_dataset('dict_list', data=dict_list_json)
+ 
+# # 从HDF5文件读取数据
+# with h5py.File('data.h5', 'r') as f:
+#     loaded_dict_list_json = f['dict_list'][:]
+ 
+# # 将JSON字符串转换回字典
+# loaded_dict_list = [json.loads(d) for d in loaded_dict_list_json]
+ 
+# # 输出加载后的字典列表
+# print(loaded_dict_list)
 
 
     # with h5py.File(args.output_file, 'w') as outf:
