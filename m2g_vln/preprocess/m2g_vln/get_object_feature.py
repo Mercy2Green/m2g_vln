@@ -853,7 +853,7 @@ def build_feature_file(args): # main funcution
                 key = '%s_%s'%(scan_id, viewpoint_id)
                 
                 data = result_list
-                outf.create_dataset(key, data=data, dtype='dict', compression='gzip')
+                outf.create_dataset(key, data=data, dtype='object', compression='gzip')
                 outf[key][...] = data
                 outf[key].attrs['scanId'] = scan_id
                 outf[key].attrs['viewpointId'] = viewpoint_id
