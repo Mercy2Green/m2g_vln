@@ -853,13 +853,28 @@ def build_feature_file(args): # main funcution
                 key = '%s_%s'%(scan_id, viewpoint_id)
                 
                 data = result_list
-                outf.create_dataset(key, data=data, dtype='dict', compression='gzip')
+                outf.create_dataset(key, data=data, dtype='object', compression='gzip')
                 outf[key][...] = data
                 outf[key].attrs['scanId'] = scan_id
                 outf[key].attrs['viewpointId'] = viewpoint_id
 
                 num_finished_vps += 1
                 progress_bar.update(num_finished_vps)
+
+
+# Traceback (most recent call last):
+#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 877, in <module>
+#     build_feature_file(args)
+#   File "/home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/get_object_feature.py", line 856, in build_feature_file
+#     outf.create_dataset(key, data=data, dtype='object', compression='gzip')
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/site-packages/h5py/_hl/group.py", line 183, in create_dataset
+#     dsid = dataset.make_new_dset(group, shape, dtype, data, name, **kwds)
+#   File "/home/lg1/.conda/envs/conceptgraph/lib/python3.10/site-packages/h5py/_hl/dataset.py", line 86, in make_new_dset
+#     tid = h5t.py_create(dtype, logical=1)
+#   File "h5py/h5t.pyx", line 1664, in h5py.h5t.py_create
+#   File "h5py/h5t.pyx", line 1688, in h5py.h5t.py_create
+#   File "h5py/h5t.pyx", line 1748, in h5py.h5t.py_create
+# TypeError: Object dtype dtype('O') has no native HDF5 equivalent
 
     progress_bar.finish()
 
