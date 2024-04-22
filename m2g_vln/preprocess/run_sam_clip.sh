@@ -1,25 +1,25 @@
-# python m2g_vln/get_object_feature.py \
-#     --checkpoint_file_segment /home/lg1/peteryu_workspace/model/sam_vit_h_4b8939.pth \
-#     --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/R2R \
-#     --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
-#     --output_dir /data/vln_datasets/preprocessed_data/R2R_object_feature/without_ov_detector \
-#     --num_workers 6 \
-#     --class_set none \
-
-
-# with detection
 python m2g_vln/get_object_feature.py \
     --checkpoint_file_segment /home/lg1/peteryu_workspace/model/sam_vit_h_4b8939.pth \
     --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/test \
     --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
-    --output_dir /data/vln_datasets/preprocessed_data/R2R_object_feature/with_ov_detector \
+    --output_dir /data/vln_datasets/preprocessed_data/R2R_object_feature/without_ov_detector \
     --num_workers 6 \
-    --class_set ram \
-    --box_threshold 0.2 \
-    --text_threshold 0.2 \
-    --add_bg_classes \
-    --accumu_classes \
-    --exp_suffix withbg_allclasses
+    --class_set none \
+
+
+# # with detection
+# python m2g_vln/get_object_feature.py \
+#     --checkpoint_file_segment /home/lg1/peteryu_workspace/model/sam_vit_h_4b8939.pth \
+#     --connectivity_dir /home/lg1/peteryu_workspace/m2g_vln/m2g_vln/preprocess/m2g_vln/dataset/connectivity_dir/test \
+#     --scan_dir /data/vln_datasets/matterport3d/v1/unzipped \
+#     --output_dir /data/vln_datasets/preprocessed_data/R2R_object_feature/with_ov_detector \
+#     --num_workers 6 \
+#     --class_set ram \
+#     --box_threshold 0.2 \
+#     --text_threshold 0.2 \
+#     --add_bg_classes \
+#     --accumu_classes \
+#     --exp_suffix withbg_allclasses
 
 
 
