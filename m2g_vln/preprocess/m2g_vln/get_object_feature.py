@@ -155,7 +155,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument('--connectivity_dir', default='../datasets/R2R/connectivity')
     parser.add_argument('--scan_dir', default='../data/v1/scans')
     parser.add_argument('--output_dir')
-    parser.add_argument('--output_file')
+    # parser.add_argument('--output_file')
     parser.add_argument('--num_workers', type=int, default=1)
 
 
@@ -492,7 +492,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 
     print('start proc_id: %d' % proc_id)
     gpu_count = torch.cuda.device_count()
-    local_rank = proc_id % gpu_count
+    local_rank = proc_id % gpu_count + 2 # 2 to 7 (6 six gpu)
     torch.cuda.set_device('cuda:{}'.format(local_rank))
  
     results_list = []
@@ -832,7 +832,7 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
 def build_feature_file(args): # main funcution
 
 
-    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+    # os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
 
     scanvp_list = load_viewpoint_ids(args.connectivity_dir) #return para viewpoint_ids is a list
 
