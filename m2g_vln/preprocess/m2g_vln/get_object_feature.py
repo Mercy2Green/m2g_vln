@@ -612,6 +612,15 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
         # Loop all discretized views from this location
         images = []
 
+
+        # save_name
+        save_name = '%s_%s'%(scan_id, viewpoint_id)
+
+        detections_save_path_save_name = args.output_dir + f"/{scan_id}" + f"/gsa_detections_{save_name}"
+
+        detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
+        os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
+
         for ix in range(VIEWPOINT_SIZE):
 
             ### Relevant paths and load image ###
@@ -807,20 +816,12 @@ def process_features(proc_id, out_queue, scanvp_list, args: argparse.Namespace):
                 results["tagging_caption"] = caption
                 results["tagging_text_prompt"] = text_prompt
             
-            results_list.append(results)
+            # results_list.append(results)
 
-
-        save_name = '%s_%s'%(scan_id, viewpoint_id)
-
-        detections_save_path_save_name = args.output_dir + f"/{scan_id}" + f"/gsa_detections_{save_name}"
-
-        detections_save_path_gz = detections_save_path_save_name + f".pkl.gz"
-        os.makedirs(os.path.dirname(detections_save_path_gz), exist_ok=True)
-
-        # save the detections using pickle
-        # Here we use gzip to compress the file, which could reduce the file size by 500x
-        with gzip.open(detections_save_path_gz, "wb") as f:
-            pickle.dump(results_list, f)
+            # save the detections using pickle
+            # Here we use gzip to compress the file, which could reduce the file size by 500x
+            with gzip.open(detections_save_path_gz, "wb") as f:
+                pickle.dump(results, f)
         
         # save global classes
         with open(args.output_dir + f"/{scan_id}" + f"/gsa_classes_{save_name}.json", "w") as f:

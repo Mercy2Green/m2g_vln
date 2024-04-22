@@ -191,6 +191,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         self.num_imgs = len(self.color_paths)
 
         # self.transformed_poses = datautils.poses_to_transforms(self.poses)
+        print(self.poses)
         self.poses = torch.stack(self.poses)
         if self.relative_pose:
             self.transformed_poses = self._preprocess_poses(self.poses)
@@ -396,8 +397,8 @@ class R2RDataset(GradSLAMDataset):
                 if line.startswith('scan'):
                     parts = line.split()
                     depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
-                    color_paths.append(os.path.join(self.input_folder, "undistorted_rgb_images", parts[2]))
-                    poses.append([float(i) for i in parts[3:19]])
+                    color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
+                    poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
                     if last_intrinsics_matrix is not None:
                         intrinsics_matrix.append(last_intrinsics_matrix)
                 elif line.startswith('intrinsics_matrix'):
@@ -423,6 +424,8 @@ class R2RDataset(GradSLAMDataset):
     def load_poses(self):
 
         _, _, poses, _ = self.get_c_d_p_i()
+
+
 
         return poses
 
@@ -1254,25 +1257,43 @@ def get_dataset(dataconfig, basedir, sequence, **kwargs):
         return MultiscanDataset(config_dict, basedir, sequence, **kwargs)
     elif config_dict['dataset_name'].lower() in ['hm3d']:
         return Hm3dDataset(config_dict, basedir, sequence, **kwargs)
+    elif config_dict["dataset_name"].lower() in ["r2r"]:
+        return R2RDataset(config_dict, basedir, sequence, **kwargs)
     else:
         raise ValueError(f"Unknown dataset name {config_dict['dataset_name']}")
 
 
 if __name__ == "__main__":
+    # cfg = load_dataset_config(
+    #     "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
+    # )
+    # dataset = ReplicaDataset(
+    #     config_dict=cfg,
+    #     basedir="/media/m2g/Data/Datasets/replica_niceslam/Replica",
+    #     sequence="office0",
+    #     start=0,
+    #     end=1900,
+    #     stride=100,
+    #     # desired_height=680,
+    #     # desired_width=1200,
+    #     desired_height=240,
+    #     desired_width=320,
+    # )
+
     cfg = load_dataset_config(
-        "/home/qiao/src/gradslam-foundation/examples/dataconfigs/replica/replica.yaml"
+        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
     )
-    dataset = ReplicaDataset(
+    dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/home/qiao/src/nice-slam/Datasets/Replica",
-        sequence="office0",
-        start=0,
-        end=1900,
-        stride=100,
+        basedir="/media/m2g/Data/Datasets/dataset/test",
+        sequence="1LXtFkjw3qL",
+        # start=0,
+        # end=1900,
+        # stride=100,
         # desired_height=680,
         # desired_width=1200,
-        desired_height=240,
-        desired_width=320,
+        desired_height=224,
+        desired_width=224,
     )
 
     colors, depths, poses = [], [], []

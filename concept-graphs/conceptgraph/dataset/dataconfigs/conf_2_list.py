@@ -35,6 +35,7 @@
 # please generate the code
 
 import os
+import torch
 
 color_images = []
 depth_images = []
@@ -53,7 +54,7 @@ with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/concep
             parts = line.split()
             depth_images.append(os.path.join(input_folder, depth_folder, parts[1]))
             color_images.append(os.path.join(input_folder, image_folder, parts[2]))
-            poses.append([float(i) for i in parts[3:19]])
+            poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
             if last_intrinsics_matrix is not None:
                 intrinsics_matrix.append(last_intrinsics_matrix)
         elif line.startswith('intrinsics_matrix'):
@@ -64,10 +65,12 @@ with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/concep
 # assert len(color_images) == len(depth_images) == len(intrinsics_matrix) == len(poses)
 
 # print all lists
-print(len(color_images))
-print(len(depth_images))
-print(len(intrinsics_matrix))
-print(len(poses))
+# print(len(color_images))
+# print(len(depth_images))
+# print(len(intrinsics_matrix))
+# print(len(poses))
 
-print(color_images)
-print(intrinsics_matrix)
+# print(color_images)
+# print(intrinsics_matrix)
+
+print(poses)
