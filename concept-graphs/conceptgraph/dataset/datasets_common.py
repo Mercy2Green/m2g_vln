@@ -1281,19 +1281,19 @@ if __name__ == "__main__":
     # )
 
     cfg = load_dataset_config(
-        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
     )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/media/m2g/Data/Datasets/dataset/test",
+        basedir="/data/vln_datasets/matterport3d/v1/unzipped",
         sequence="1LXtFkjw3qL",
         # start=0,
         # end=1900,
         # stride=100,
         # desired_height=680,
         # desired_width=1200,
-        desired_height=224,
-        desired_width=224,
+        desired_height=1024,
+        desired_width=1280,
     )
 
     colors, depths, poses = [], [], []

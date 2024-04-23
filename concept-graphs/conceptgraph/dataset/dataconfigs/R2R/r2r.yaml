@@ -1,7 +1,7 @@
 dataset_name: 'R2R'
 camera_params:
   image_height: 1024
-  image_width: 1024
+  image_width: 1280
   fx: 1169.621094
   fy: 1167.105103
   cx: 646.295044
