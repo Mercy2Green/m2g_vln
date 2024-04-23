@@ -1,4 +1,4 @@
-dataset_name: 'R2R'
+dataset_name: 'r2r'
 camera_params:
   image_height: 1024
   image_width: 1024

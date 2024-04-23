@@ -191,7 +191,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         self.num_imgs = len(self.color_paths)
 
         # self.transformed_poses = datautils.poses_to_transforms(self.poses)
-        print(self.poses)
+        # print(self.poses)
         self.poses = torch.stack(self.poses)
         if self.relative_pose:
             self.transformed_poses = self._preprocess_poses(self.poses)
