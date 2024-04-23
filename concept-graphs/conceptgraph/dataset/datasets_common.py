@@ -1285,7 +1285,7 @@ if __name__ == "__main__":
     )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/data/vln_datasets/matterport3d/v1/unzipped",
+        basedir="/data/vln_datasets/matterport3d/test",
         sequence="1LXtFkjw3qL",
         # start=0,
         # end=1900,
@@ -1296,16 +1296,37 @@ if __name__ == "__main__":
         desired_width=1280,
     )
 
-    colors, depths, poses = [], [], []
-    intrinsics = None
+    # colors, depths, poses = [], [], []
+    # intrinsics = None
+    # for idx in range(len(dataset)):
+    #     _color, _depth, intrinsics, _pose = dataset[idx]
+    #     colors.append(_color)
+    #     depths.append(_depth)
+    #     poses.append(_pose)
+    # colors = torch.stack(colors)
+    # depths = torch.stack(depths)
+    # poses = torch.stack(poses)
+    # colors = colors.unsqueeze(0)
+    # depths = depths.unsqueeze(0)
+    # intrinsics = intrinsics.unsqueeze(0).unsqueeze(0)
+    # poses = poses.unsqueeze(0)
+    # colors = colors.float()
+    # depths = depths.float()
+    # intrinsics = intrinsics.float()
+    # poses = poses.float()
+
+    colors, depths, poses, intrinsics = [], [], [], []
     for idx in range(len(dataset)):
-        _color, _depth, intrinsics, _pose = dataset[idx]
+        _color, _depth, _intrinsics, _pose = dataset[idx]
         colors.append(_color)
         depths.append(_depth)
         poses.append(_pose)
+        intrinsics.append(_intrinsics)
+        print(f"{idx}:{len(dataset)} index is loaded {_intrinsics}")
     colors = torch.stack(colors)
     depths = torch.stack(depths)
     poses = torch.stack(poses)
+    intrinsics = torch.stack(intrinsics)
     colors = colors.unsqueeze(0)
     depths = depths.unsqueeze(0)
     intrinsics = intrinsics.unsqueeze(0).unsqueeze(0)
@@ -1314,6 +1335,8 @@ if __name__ == "__main__":
     depths = depths.float()
     intrinsics = intrinsics.float()
     poses = poses.float()
+    print(intrinsics)
+
 
     # create rgbdimages object
     rgbdimages = RGBDImages(
