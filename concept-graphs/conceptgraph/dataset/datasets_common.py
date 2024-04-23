@@ -1281,11 +1281,13 @@ if __name__ == "__main__":
     # )
 
     cfg = load_dataset_config(
-        "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        #"/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
     )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/data/vln_datasets/matterport3d/test",
+        basedir="/media/m2g/Data/Datasets/dataset/test",
         sequence="1LXtFkjw3qL",
         # start=0,
         # end=1900,
@@ -1295,6 +1297,29 @@ if __name__ == "__main__":
         desired_height=1024,
         desired_width=1280,
     )
+    # dataset = R2RDataset(
+    #     config_dict=cfg,
+    #     basedir="/data/vln_datasets/matterport3d/test",
+    #     sequence="1LXtFkjw3qL",
+    #     # start=0,
+    #     # end=1900,
+    #     # stride=100,
+    #     # desired_height=680,
+    #     # desired_width=1200,
+    #     desired_height=1024,
+    #     desired_width=1280,
+    # )
+
+    # dataset = ReplicaDataset(
+    #     config_dict=cfg,
+    #     basedir="/media/m2g/Data/Datasets/replica_niceslam/Replica",
+    #     sequence="room0",
+    #     start=0,
+    #     end=1900,
+    #     stride=100,
+    #     desired_height=680,
+    #     desired_width=1200,
+    # )
 
     # colors, depths, poses = [], [], []
     # intrinsics = None
@@ -1303,6 +1328,7 @@ if __name__ == "__main__":
     #     colors.append(_color)
     #     depths.append(_depth)
     #     poses.append(_pose)
+    # print(intrinsics)
     # colors = torch.stack(colors)
     # depths = torch.stack(depths)
     # poses = torch.stack(poses)
@@ -1314,19 +1340,26 @@ if __name__ == "__main__":
     # depths = depths.float()
     # intrinsics = intrinsics.float()
     # poses = poses.float()
+    # print(intrinsics)
 
     colors, depths, poses, intrinsics = [], [], [], []
+    intrinsics = None
     for idx in range(len(dataset)):
         _color, _depth, _intrinsics, _pose = dataset[idx]
+        if intrinsics is None:
+            intrinsics = _intrinsics
         colors.append(_color)
         depths.append(_depth)
         poses.append(_pose)
-        intrinsics.append(_intrinsics)
+        intrinsics = (intrinsics * idx + _intrinsics) / (idx + 1)
         print(f"{idx}:{len(dataset)} index is loaded {_intrinsics}")
+
+    # calcutlate the intrinsics to only one matrix
+    print("Let see the intrinsics",intrinsics)
+
     colors = torch.stack(colors)
     depths = torch.stack(depths)
     poses = torch.stack(poses)
-    intrinsics = torch.stack(intrinsics)
     colors = colors.unsqueeze(0)
     depths = depths.unsqueeze(0)
     intrinsics = intrinsics.unsqueeze(0).unsqueeze(0)
