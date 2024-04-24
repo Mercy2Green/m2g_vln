@@ -398,7 +398,7 @@ class R2RDataset(GradSLAMDataset):
                     parts = line.split()
                     depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
                     color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
-                    poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
+                    poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4)) # maybe is reshape error.
                     if last_intrinsics_matrix is not None:
                         intrinsics_matrix.append(last_intrinsics_matrix)
                 elif line.startswith('intrinsics_matrix'):
@@ -411,6 +411,9 @@ class R2RDataset(GradSLAMDataset):
     def get_intrinsic_matrix(self):
 
         _, _, _, intrinsic_matrix = self.get_c_d_p_i()
+
+        # intrinsic_matrix is a list of lists, calcualte the mean of each element and save as final intrinsic matrix
+        intrinsic_matrix = np.mean(intrinsic_matrix, axis=0)
 
         return intrinsic_matrix
 
@@ -434,61 +437,61 @@ class R2RDataset(GradSLAMDataset):
     #     embedding = torch.load(embedding_file_path, map_location="cpu")
     #     return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
 
-    def __getitem__(self, index):
-        color_path = self.color_paths[index]
-        depth_path = self.depth_paths[index]
-        color = np.asarray(imageio.imread(color_path), dtype=float)
-        color = self._preprocess_color(color)
-        color = torch.from_numpy(color)
-        if ".png" in depth_path:
-            # depth_data = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-            depth = np.asarray(imageio.imread(depth_path), dtype=np.int64)
-        elif ".exr" in depth_path:
-            depth = readEXR_onlydepth(depth_path)
-        elif ".npy" in depth_path:
-            depth = np.load(depth_path)
-        else:
-            raise NotImplementedError
+    # def __getitem__(self, index):
+    #     color_path = self.color_paths[index]
+    #     depth_path = self.depth_paths[index]
+    #     color = np.asarray(imageio.imread(color_path), dtype=float)
+    #     color = self._preprocess_color(color)
+    #     color = torch.from_numpy(color)
+    #     if ".png" in depth_path:
+    #         # depth_data = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+    #         depth = np.asarray(imageio.imread(depth_path), dtype=np.int64)
+    #     elif ".exr" in depth_path:
+    #         depth = readEXR_onlydepth(depth_path)
+    #     elif ".npy" in depth_path:
+    #         depth = np.load(depth_path)
+    #     else:
+    #         raise NotImplementedError
         
-        intrinsics_matrix = self.intrinsics_matrix[index]
+    #     intrinsics_matrix = self.intrinsics_matrix[index]
 
-        # K = as_intrinsics_matrix([self.fx, self.fy, self.cx, self.cy])
-        K = as_intrinsics_matrix(intrinsics_matrix)
-        K = torch.from_numpy(K)
+    #     # K = as_intrinsics_matrix([self.fx, self.fy, self.cx, self.cy])
+    #     K = as_intrinsics_matrix(intrinsics_matrix)
+    #     K = torch.from_numpy(K)
 
-        if self.distortion is not None:
-            # undistortion is only applied on color image, not depth!
-            color = cv2.undistort(color, K, self.distortion)
+    #     if self.distortion is not None:
+    #         # undistortion is only applied on color image, not depth!
+    #         color = cv2.undistort(color, K, self.distortion)
 
-        depth = self._preprocess_depth(depth)
-        depth = torch.from_numpy(depth)
+    #     depth = self._preprocess_depth(depth)
+    #     depth = torch.from_numpy(depth)
 
-        K = datautils.scale_intrinsics(
-            K, self.height_downsample_ratio, self.width_downsample_ratio
-        )
-        intrinsics = torch.eye(4).to(K)
-        intrinsics[:3, :3] = K
+    #     K = datautils.scale_intrinsics(
+    #         K, self.height_downsample_ratio, self.width_downsample_ratio
+    #     )
+    #     intrinsics = torch.eye(4).to(K)
+    #     intrinsics[:3, :3] = K
 
-        pose = self.transformed_poses[index]
+    #     pose = self.transformed_poses[index]
 
-        if self.load_embeddings:
-            embedding = self.read_embedding_from_file(self.embedding_paths[index])
-            return (
-                color.to(self.device).type(self.dtype),
-                depth.to(self.device).type(self.dtype),
-                intrinsics.to(self.device).type(self.dtype),
-                pose.to(self.device).type(self.dtype),
-                embedding.to(self.device),  # Allow embedding to be another dtype
-                # self.retained_inds[index].item(),
-            )
+    #     if self.load_embeddings:
+    #         embedding = self.read_embedding_from_file(self.embedding_paths[index])
+    #         return (
+    #             color.to(self.device).type(self.dtype),
+    #             depth.to(self.device).type(self.dtype),
+    #             intrinsics.to(self.device).type(self.dtype),
+    #             pose.to(self.device).type(self.dtype),
+    #             embedding.to(self.device),  # Allow embedding to be another dtype
+    #             # self.retained_inds[index].item(),
+    #         )
 
-        return (
-            color.to(self.device).type(self.dtype),
-            depth.to(self.device).type(self.dtype),
-            intrinsics.to(self.device).type(self.dtype),
-            pose.to(self.device).type(self.dtype),
-            # self.retained_inds[index].item(),
-        )
+    #     return (
+    #         color.to(self.device).type(self.dtype),
+    #         depth.to(self.device).type(self.dtype),
+    #         intrinsics.to(self.device).type(self.dtype),
+    #         pose.to(self.device).type(self.dtype),
+    #         # self.retained_inds[index].item(),
+    #     )
 
 class ICLDataset(GradSLAMDataset):
     def __init__(
@@ -1352,6 +1355,7 @@ if __name__ == "__main__":
         depths.append(_depth)
         poses.append(_pose)
         intrinsics = (intrinsics * idx + _intrinsics) / (idx + 1)
+        # print(f"{idx}:{len(dataset)} index is loaded {_color}, {_depth}, {_intrinsics}, {_pose}")
         print(f"{idx}:{len(dataset)} index is loaded {_intrinsics}")
 
     # calcutlate the intrinsics to only one matrix
