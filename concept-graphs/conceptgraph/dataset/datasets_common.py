@@ -1281,25 +1281,13 @@ if __name__ == "__main__":
     # )
 
     cfg = load_dataset_config(
-        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
-        #"/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
         #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
-    )
-    dataset = R2RDataset(
-        config_dict=cfg,
-        basedir="/media/m2g/Data/Datasets/dataset/test",
-        sequence="1LXtFkjw3qL",
-        # start=0,
-        # end=1900,
-        # stride=100,
-        # desired_height=680,
-        # desired_width=1200,
-        desired_height=1024,
-        desired_width=1280,
     )
     # dataset = R2RDataset(
     #     config_dict=cfg,
-    #     basedir="/data/vln_datasets/matterport3d/test",
+    #     basedir="/media/m2g/Data/Datasets/dataset/test",
     #     sequence="1LXtFkjw3qL",
     #     # start=0,
     #     # end=1900,
@@ -1309,6 +1297,18 @@ if __name__ == "__main__":
     #     desired_height=1024,
     #     desired_width=1280,
     # )
+    dataset = R2RDataset(
+        config_dict=cfg,
+        basedir="/data/vln_datasets/matterport3d/test",
+        sequence="1LXtFkjw3qL",
+        # start=0,
+        # end=1900,
+        # stride=100,
+        # desired_height=680,
+        # desired_width=1200,
+        desired_height=1024,
+        desired_width=1280,
+    )
 
     # dataset = ReplicaDataset(
     #     config_dict=cfg,
