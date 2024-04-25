@@ -111,7 +111,7 @@ def build_img_file(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--connectivity_dir', default='precompute_features/connectivity')
-    parser.add_argument('--scan_dir', default='/data/andong/Matterport/v1/scans') # mp3d scan path
+    parser.add_argument('--scan_dir', default='/root/mount/Matterport3DSimulator/data/v1/scans') # mp3d scan path
     parser.add_argument('--output_file', default=None)
     parser.add_argument('--num_workers', type=int, default=1)
     args = parser.parse_args()
