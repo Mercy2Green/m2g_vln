@@ -20,6 +20,7 @@ python slam/cfslam_pipeline_batch.py \
     merge_text_sim_thresh=0.8
 
 # python scripts/visualize_cfslam_results.py --result_path "/data/vln_datasets/matterport3d/test/1LXtFkjw3qL/pcd_saves/full_pcd_none_overlap_maskconf0.95_simsum1.2_dbscan.1_merge20_masksub.pkl.gz"
+# python scripts/visualize_cfslam_results.py --result_path "/media/m2g/Data/Datasets/dataset/test/full_pcd_none_overlap_maskconf0.95_simsum1.2_dbscan.1_merge20_masksub.pkl.gz"
 
 # # On the ConceptGraphs-Detect 
 # SCENE_NAMES=room0

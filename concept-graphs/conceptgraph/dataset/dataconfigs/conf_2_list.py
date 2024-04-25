@@ -36,6 +36,7 @@
 
 import os
 import torch
+import numpy as np
 
 color_images = []
 depth_images = []
@@ -48,18 +49,28 @@ input_folder = "/media/m2g/Data/Datasets/"
 image_folder = "undistorted_rgb_images"
 depth_folder = "undistorted_depth_images"
 
+y_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
 with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R_original_cam_pose_file/1LXtFkjw3qL.conf', 'r') as file:
     for line in file:
         if line.startswith('scan'):
             parts = line.split()
             depth_images.append(os.path.join(input_folder, depth_folder, parts[1]))
             color_images.append(os.path.join(input_folder, image_folder, parts[2]))
+            _poses = [float(i) for i in parts[3:19]]
+            # _poses convert to 4*4 np.array
+            _poses = np.array(_poses).reshape(4, 4)
+            _poses = _poses @ y_conver_matix
+
             poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
             if last_intrinsics_matrix is not None:
                 intrinsics_matrix.append(last_intrinsics_matrix)
         elif line.startswith('intrinsics_matrix'):
             parts = line.split()
             last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+
+
+            
 
 # Ensure all lists have the same length
 # assert len(color_images) == len(depth_images) == len(intrinsics_matrix) == len(poses)

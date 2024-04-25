@@ -392,13 +392,20 @@ class R2RDataset(GradSLAMDataset):
         poses = []
         last_intrinsics_matrix = None
 
+        y_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
+
         with open(self.pose_path, 'r') as file:
             for line in file:
                 if line.startswith('scan'):
                     parts = line.split()
                     depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
                     color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
-                    poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4)) # maybe is reshape error.
+                    _poses = [float(i) for i in parts[3:19]]
+                    # _poses convert to 4*4 np.array
+                    _poses = np.array(_poses).reshape(4, 4)
+                    _poses = _poses @ y_conver_matix
+                    # poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4)) # maybe is reshape error.
+                    poses.append(torch.tensor(_poses).reshape(4, 4))
                     if last_intrinsics_matrix is not None:
                         intrinsics_matrix.append(last_intrinsics_matrix)
                 elif line.startswith('intrinsics_matrix'):
@@ -1284,25 +1291,13 @@ if __name__ == "__main__":
     # )
 
     cfg = load_dataset_config(
-        #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
-        "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        # "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
         #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
     )
-    # dataset = R2RDataset(
-    #     config_dict=cfg,
-    #     basedir="/media/m2g/Data/Datasets/dataset/test",
-    #     sequence="1LXtFkjw3qL",
-    #     # start=0,
-    #     # end=1900,
-    #     # stride=100,
-    #     # desired_height=680,
-    #     # desired_width=1200,
-    #     desired_height=1024,
-    #     desired_width=1280,
-    # )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/data/vln_datasets/matterport3d/test",
+        basedir="/media/m2g/Data/Datasets/dataset/test",
         sequence="1LXtFkjw3qL",
         # start=0,
         # end=1900,
@@ -1312,6 +1307,18 @@ if __name__ == "__main__":
         desired_height=1024,
         desired_width=1280,
     )
+    # dataset = R2RDataset(
+    #     config_dict=cfg,
+    #     basedir="/data/vln_datasets/matterport3d/test",
+    #     sequence="1LXtFkjw3qL",
+    #     # start=0,
+    #     # end=1900,
+    #     # stride=100,
+    #     # desired_height=680,
+    #     # desired_width=1200,
+    #     desired_height=1024,
+    #     desired_width=1280,
+    # )
 
     # dataset = ReplicaDataset(
     #     config_dict=cfg,
