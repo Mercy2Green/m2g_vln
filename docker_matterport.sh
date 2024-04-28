@@ -1,4 +1,4 @@
-# pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && pip install tensorboardX easydict transformers sklearn jsonlines torch_scatter
+# pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && pip install tensorboardX easydict transformers sklearn jsonlines torch_scatter grpcio
 
 #! /bin/bash
 

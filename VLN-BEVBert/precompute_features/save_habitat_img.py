@@ -11,15 +11,15 @@ import torch.multiprocessing as mp
 import argparse
 import cv2
 
-sys.path.insert(0, '/data/andong/vln_dataset/Matterport3DSimulator/build_cpu')  # please compile Matterport3DSimulator using cpu_only mode
+sys.path.insert(0, '/root/mount/Matterport3DSimulator/build')  # please compile Matterport3DSimulator using cpu_only mode
 import MatterSim
 from utils.habitat_utils import HabitatUtils
 from scipy.spatial.transform import Rotation as R
 
 VIEWPOINT_SIZE = 36
-WIDTH = 256
-HEIGHT = 256
-VFOV = 60
+WIDTH = 224
+HEIGHT = 224
+VFOV = 90
 
 def build_simulator(connectivity_dir, scan_dir):
     sim = MatterSim.Simulator()
@@ -58,7 +58,7 @@ def get_img(proc_id, out_queue, scanvp_list, args):
         if scan_id != pre_scan:
             if habitat_sim != None:
                 habitat_sim.sim.close()
-            habitat_sim = HabitatUtils(f'bevbert_ce/data/scene_datasets/mp3d/{scan_id}/{scan_id}.glb', 
+            habitat_sim = HabitatUtils(f'/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d/{scan_id}/{scan_id}.glb', 
                                        int(0), 60, HEIGHT, WIDTH)
             pre_scan = scan_id
 
@@ -143,7 +143,7 @@ def build_img_file(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--connectivity_dir', default='precompute_features/connectivity')
-    parser.add_argument('--scan_dir', default='/data/andong/Matterport/v1/scans') # mp3d scan path
+    parser.add_argument('--scan_dir', default='/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d') # mp3d scan path
     parser.add_argument('--output_file', default=None)
     parser.add_argument('--num_workers', type=int, default=1)
     parser.add_argument('--img_type', type=str, default='rgb', choices=['rgb', 'depth'])

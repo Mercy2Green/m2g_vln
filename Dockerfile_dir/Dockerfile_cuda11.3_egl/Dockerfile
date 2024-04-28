@@ -69,6 +69,9 @@ RUN conda create -y -n bevbert python=3.6 cmake=3.14.0
 RUN echo "source activate bevbert" >> ~/.bashrc
 
 RUN source activate bevbert && \
+    pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+RUN source activate bevbert && \
     pip3 install numpy pandas networkx==2.2 opencv_python==4.1.2.30
 
 RUN source activate bevbert && \
@@ -101,7 +104,8 @@ ENV GLOG_minloglevel=2
 ENV MAGNUM_LOG="quiet"
 
 RUN source activate bevbert && \
-    pip3 install gym==0.17.3
+    pip3 install gym==0.17.3 && \
+    pip3 install tensorboardX easydict transformers sklearn jsonlines torch_scatter grpcio
 
 ENV PYTHONPATH=/root/mount/Matterport3DSimulator/build
 
