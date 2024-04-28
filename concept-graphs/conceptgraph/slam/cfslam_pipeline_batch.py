@@ -303,7 +303,7 @@ def main(cfg : DictConfig):
                 _ for _ in objects if _['num_detections'] >= cfg.obj_min_detections
             ])
             
-            objects_to_save = prepare_objects_save_vis(objects_to_save)
+            objects_to_save = prepare_objects_save_vis(objects_to_save)  #We want to save this!!!!!!
             
             if not cfg.skip_bg:
                 bg_objects_to_save = MapObjectList([_ for _ in bg_objects.values() if _ is not None])

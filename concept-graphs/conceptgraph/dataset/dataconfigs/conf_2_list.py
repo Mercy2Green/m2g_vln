@@ -36,6 +36,7 @@
 
 import os
 import torch
+import numpy as np
 
 color_images = []
 depth_images = []
@@ -48,18 +49,40 @@ input_folder = "/media/m2g/Data/Datasets/"
 image_folder = "undistorted_rgb_images"
 depth_folder = "undistorted_depth_images"
 
+y_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+
 with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R_original_cam_pose_file/1LXtFkjw3qL.conf', 'r') as file:
     for line in file:
         if line.startswith('scan'):
             parts = line.split()
             depth_images.append(os.path.join(input_folder, depth_folder, parts[1]))
             color_images.append(os.path.join(input_folder, image_folder, parts[2]))
-            poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
+            _poses = [float(i) for i in parts[3:19]]
+            # _poses convert to 4*4 np.array
+            _poses = np.array(_poses).reshape(4, 4)
+            _poses = _poses @ y_conver_matix
+            _poses = torch.inverse(torch.tensor(_poses))
+            print(_poses)
+            # poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
             if last_intrinsics_matrix is not None:
                 intrinsics_matrix.append(last_intrinsics_matrix)
         elif line.startswith('intrinsics_matrix'):
             parts = line.split()
             last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+
+
+# Load pose
+
+# pose file name is 0e92a69a50414253a23043758f111cec_pose_0_0.txt, 0e92a69a50414253a23043758f111cec_pose_0_1.txt, 0e92a69a50414253a23043758f111cec_pose_1_4.txt
+# In the pose file there are 4*4 matrix
+# 0.856281 -0.320562 -0.404999 -2.22022 
+# 0.515729 0.57375 0.636266 -0.48064 
+# 0.0284057 -0.753692 0.656614 1.55139 
+# 0 0 0 1 
+
+# I have the color image file name 0b22fa63d0f54a529c525afbf2e8bb25_i0_0.jpg, 0b22fa63d0f54a529c525afbf2e8bb25_i0_1.jpg, 0b22fa63d0f54a529c525afbf2e8bb25_i1_4.jpg, I want to load the pose file corresponding to the color image file.
+
+
 
 # Ensure all lists have the same length
 # assert len(color_images) == len(depth_images) == len(intrinsics_matrix) == len(poses)
@@ -72,5 +95,3 @@ with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/concep
 
 # print(color_images)
 # print(intrinsics_matrix)
-
-print(poses)

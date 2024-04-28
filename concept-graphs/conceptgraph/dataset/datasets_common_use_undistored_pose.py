@@ -362,7 +362,7 @@ class R2RDataset(GradSLAMDataset):
         load_embeddings: Optional[bool] = False,
         embedding_dir: Optional[str] = "embeddings",
         embedding_dim: Optional[int] = 512,
-        relative_pose: bool = True, # If True, the pose is relative to the first frame
+        relative_pose: bool = False, # If True, the pose is relative to the first frame
         **kwargs,
     ):
         self.input_folder = os.path.join(basedir, sequence)
@@ -392,7 +392,7 @@ class R2RDataset(GradSLAMDataset):
         poses = []
         last_intrinsics_matrix = None
 
-        pose_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
+        y_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
 
         with open(self.pose_path, 'r') as file:
             for line in file:
@@ -403,7 +403,7 @@ class R2RDataset(GradSLAMDataset):
                     _poses = [float(i) for i in parts[3:19]]
                     # _poses convert to 4*4 np.array
                     _poses = np.array(_poses).reshape(4, 4)
-                    _poses = _poses @ pose_conver_matix
+                    _poses = _poses @ y_conver_matix
                     # poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4)) # maybe is reshape error.
                     poses.append(torch.tensor(_poses).reshape(4, 4))
                     if last_intrinsics_matrix is not None:
@@ -417,74 +417,26 @@ class R2RDataset(GradSLAMDataset):
 
     def get_intrinsic_matrix(self):
 
-        intrinsics_matrix = []
-        last_intrinsics_matrix = None
-        with open(self.pose_path, 'r') as file:
-            for line in file:
-                if line.startswith('scan'):
-                    parts = line.split()
-                    if last_intrinsics_matrix is not None:
-                        intrinsics_matrix.append(last_intrinsics_matrix)
-                elif line.startswith('intrinsics_matrix'):
-                    parts = line.split()
-                    last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+        _, _, _, intrinsic_matrix = self.get_c_d_p_i()
 
         # intrinsic_matrix is a list of lists, calcualte the mean of each element and save as final intrinsic matrix
-        intrinsic_matrix = np.mean(intrinsics_matrix, axis=0)
+        intrinsic_matrix = np.mean(intrinsic_matrix, axis=0)
 
         return intrinsic_matrix
 
     def get_filepaths(self):
 
-        color_paths = []
-        depth_paths = []
-
-        with open(self.pose_path, 'r') as file:
-            for line in file:
-                if line.startswith('scan'):
-                    parts = line.split()
-                    depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
-                    color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
-
+        color_paths, depth_paths, _, _ = self.get_c_d_p_i()
         embedding_paths = []
 
         return color_paths, depth_paths, embedding_paths
 
     def load_poses(self):
 
-        ## need have a dict. key is the image name, value is the pose.
-        color_image_file_name = None
-        poses = []
+        _, _, poses, _ = self.get_c_d_p_i()
 
-        # pose_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
 
-        with open(self.pose_path, 'r') as file:
-            for line in file:
-                if line.startswith('scan'):
-                    parts = line.split()
-                    color_image_file_name = parts[2]
-                    pose_file_name = color_image_file_name.replace("i", "pose_").replace(".jpg", ".txt")
 
-                    pose_file_path = os.path.join(self.input_folder, "matterport_camera_poses", pose_file_name)
-
-                    # Open the pose file and read the lines
-                    with open(pose_file_path, 'r') as file:
-                        lines = file.readlines()
-
-                    # Parse the lines into a 4x4 matrix
-                    pose = []
-                    for line in lines:
-                        pose.append([float(i) for i in line.split()])
-                    
-                    # Convert the pose to a np.array
-                    pose = np.array(pose)
-                    # _poses = pose @ pose_conver_matix
-                    _poses= pose
-
-                    # Convert the pose to a PyTorch tensor
-                    pose = torch.tensor(_poses)
-
-                    poses.append(pose)
         return poses
 
     # def read_embedding_from_file(self, embedding_file_path):
