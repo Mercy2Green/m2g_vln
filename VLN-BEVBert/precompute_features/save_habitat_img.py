@@ -80,6 +80,17 @@ def get_img(proc_id, out_queue, scanvp_list, args):
             rotvec_h = R.from_rotvec(mp3d_h)
             rotvec_e = R.from_rotvec(mp3d_e)
             habitat_rotation = (rotvec_h * rotvec_e).as_quat()
+
+            # Convert quaternion to rotation matrix
+            rotation_matrix = R.from_quat(habitat_rotation).as_matrix()
+
+            # Create 4x4 transformation matrix
+            transformation_matrix = np.eye(4)
+            transformation_matrix[:3, :3] = rotation_matrix
+            transformation_matrix[:3, 3] = habitat_position
+
+            print(transformation_matrix)
+
             habitat_sim.sim.set_agent_state(habitat_position, habitat_rotation)
 
             if args.img_type == 'rgb':
