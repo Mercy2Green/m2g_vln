@@ -153,8 +153,6 @@ libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_videostab.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_viz.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_xobjdetect.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_xphoto.so.4.2.0
-libMatterSim.so: /usr/lib/x86_64-linux-gnu/libOpenGL.so
-libMatterSim.so: /usr/lib/x86_64-linux-gnu/libEGL.so
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_highgui.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_datasets.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_plot.so.4.2.0
@@ -174,7 +172,6 @@ libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_flann.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_photo.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.4.2.0
 libMatterSim.so: /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.2.0
-libMatterSim.so: /usr/lib/x86_64-linux-gnu/libOpenGL.so
 libMatterSim.so: CMakeFiles/MatterSim.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/root/mount/Matterport3DSimulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX shared library libMatterSim.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/MatterSim.dir/link.txt --verbose=$(VERBOSE)

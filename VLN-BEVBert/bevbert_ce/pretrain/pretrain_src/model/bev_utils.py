@@ -35,7 +35,6 @@ def transfrom3D(xyzhe):
     T[:,3,3] =  1
     return T.astype(np.float32)
 
-
 def bevpos_polar(map_dim):
     ''' bev position encoding '''
     ref_y, ref_x = torch.meshgrid(torch.linspace(0.5, map_dim - 0.5, map_dim, dtype=torch.float32),

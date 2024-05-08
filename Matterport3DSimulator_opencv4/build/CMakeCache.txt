@@ -223,13 +223,13 @@ CMAKE_STRIP:FILEPATH=/usr/bin/strip
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Offscreen GPU rendering with EGL
-EGL_RENDERING:BOOL=ON
+EGL_RENDERING:BOOL=OFF
 
 //Dependencies for the target
 MatterSimPython_LIB_DEPENDS:STATIC=general;MatterSim;
 
 //Dependencies for the target
-MatterSim_LIB_DEPENDS:STATIC=general;jsoncpp;general;opencv_calib3d;general;opencv_core;general;opencv_dnn;general;opencv_features2d;general;opencv_flann;general;opencv_highgui;general;opencv_imgcodecs;general;opencv_imgproc;general;opencv_ml;general;opencv_objdetect;general;opencv_photo;general;opencv_stitching;general;opencv_video;general;opencv_videoio;general;opencv_aruco;general;opencv_bgsegm;general;opencv_bioinspired;general;opencv_ccalib;general;opencv_datasets;general;opencv_dnn_objdetect;general;opencv_dnn_superres;general;opencv_dpm;general;opencv_face;general;opencv_freetype;general;opencv_fuzzy;general;opencv_hdf;general;opencv_hfs;general;opencv_img_hash;general;opencv_line_descriptor;general;opencv_optflow;general;opencv_phase_unwrapping;general;opencv_plot;general;opencv_quality;general;opencv_reg;general;opencv_rgbd;general;opencv_saliency;general;opencv_shape;general;opencv_stereo;general;opencv_structured_light;general;opencv_superres;general;opencv_surface_matching;general;opencv_text;general;opencv_tracking;general;opencv_videostab;general;opencv_viz;general;opencv_ximgproc;general;opencv_xobjdetect;general;opencv_xphoto;general;OpenGL::OpenGL;general;OpenGL::EGL;general;epoxy;
+MatterSim_LIB_DEPENDS:STATIC=general;jsoncpp;general;opencv_calib3d;general;opencv_core;general;opencv_dnn;general;opencv_features2d;general;opencv_flann;general;opencv_highgui;general;opencv_imgcodecs;general;opencv_imgproc;general;opencv_ml;general;opencv_objdetect;general;opencv_photo;general;opencv_stitching;general;opencv_video;general;opencv_videoio;general;opencv_aruco;general;opencv_bgsegm;general;opencv_bioinspired;general;opencv_ccalib;general;opencv_datasets;general;opencv_dnn_objdetect;general;opencv_dnn_superres;general;opencv_dpm;general;opencv_face;general;opencv_freetype;general;opencv_fuzzy;general;opencv_hdf;general;opencv_hfs;general;opencv_img_hash;general;opencv_line_descriptor;general;opencv_optflow;general;opencv_phase_unwrapping;general;opencv_plot;general;opencv_quality;general;opencv_reg;general;opencv_rgbd;general;opencv_saliency;general;opencv_shape;general;opencv_stereo;general;opencv_structured_light;general;opencv_superres;general;opencv_surface_matching;general;opencv_text;general;opencv_tracking;general;opencv_videostab;general;opencv_viz;general;opencv_ximgproc;general;opencv_xobjdetect;general;opencv_xphoto;general;OSMesa;
 
 //Value Computed by CMake
 Matterport_Simulator_BINARY_DIR:STATIC=/root/mount/Matterport3DSimulator/build
@@ -237,32 +237,8 @@ Matterport_Simulator_BINARY_DIR:STATIC=/root/mount/Matterport3DSimulator/build
 //Value Computed by CMake
 Matterport_Simulator_SOURCE_DIR:STATIC=/root/mount/Matterport3DSimulator
 
-//Path to a file.
-OPENGL_EGL_INCLUDE_DIR:PATH=/usr/include
-
-//Path to a file.
-OPENGL_GLX_INCLUDE_DIR:PATH=/usr/include
-
-//Path to a file.
-OPENGL_INCLUDE_DIR:PATH=/usr/include
-
-//Path to a library.
-OPENGL_egl_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libEGL.so
-
-//Path to a library.
-OPENGL_glu_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libGLU.so
-
-//Path to a library.
-OPENGL_glx_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libGLX.so
-
-//Path to a library.
-OPENGL_opengl_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libOpenGL.so
-
-//Path to a file.
-OPENGL_xmesa_INCLUDE_DIR:PATH=OPENGL_xmesa_INCLUDE_DIR-NOTFOUND
-
 //Offscreen CPU rendering with OSMesa
-OSMESA_RENDERING:BOOL=OFF
+OSMESA_RENDERING:BOOL=ON
 
 //The directory containing a CMake configuration file for OpenCV.
 OpenCV_DIR:PATH=/usr/lib/x86_64-linux-gnu/cmake/opencv4
@@ -306,10 +282,10 @@ PYTHON_LIBRARY:FILEPATH=/opt/conda/envs/bevbert/lib/libpython3.6m.so
 USE_PYTHON_INCLUDE_DIR:BOOL=OFF
 
 //Path to a library.
-pkgcfg_lib_EPOXY_epoxy:FILEPATH=/usr/lib/x86_64-linux-gnu/libepoxy.so
+pkgcfg_lib_JSONCPP_jsoncpp:FILEPATH=/usr/lib/x86_64-linux-gnu/libjsoncpp.so
 
 //Path to a library.
-pkgcfg_lib_JSONCPP_jsoncpp:FILEPATH=/usr/lib/x86_64-linux-gnu/libjsoncpp.so
+pkgcfg_lib_OSMESA_OSMesa:FILEPATH=/usr/lib/x86_64-linux-gnu/libOSMesa.so
 
 //Value Computed by CMake
 pybind11_BINARY_DIR:STATIC=/root/mount/Matterport3DSimulator/build/pybind11
@@ -475,46 +451,10 @@ CMAKE_STRIP-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
-EPOXY_CFLAGS:INTERNAL=
-EPOXY_CFLAGS_I:INTERNAL=
-EPOXY_CFLAGS_OTHER:INTERNAL=
-EPOXY_FOUND:INTERNAL=1
-EPOXY_INCLUDEDIR:INTERNAL=/usr/include
-EPOXY_INCLUDE_DIRS:INTERNAL=
-EPOXY_LDFLAGS:INTERNAL=-lepoxy
-EPOXY_LDFLAGS_OTHER:INTERNAL=
-EPOXY_LIBDIR:INTERNAL=/usr/lib/x86_64-linux-gnu
-EPOXY_LIBRARIES:INTERNAL=epoxy
-EPOXY_LIBRARY_DIRS:INTERNAL=
-EPOXY_LIBS:INTERNAL=
-EPOXY_LIBS_L:INTERNAL=
-EPOXY_LIBS_OTHER:INTERNAL=
-EPOXY_LIBS_PATHS:INTERNAL=
-EPOXY_PREFIX:INTERNAL=/usr
-EPOXY_STATIC_CFLAGS:INTERNAL=
-EPOXY_STATIC_CFLAGS_I:INTERNAL=
-EPOXY_STATIC_CFLAGS_OTHER:INTERNAL=
-EPOXY_STATIC_INCLUDE_DIRS:INTERNAL=
-EPOXY_STATIC_LDFLAGS:INTERNAL=-lepoxy;-ldl;-lGL;-lEGL
-EPOXY_STATIC_LDFLAGS_OTHER:INTERNAL=
-EPOXY_STATIC_LIBDIR:INTERNAL=
-EPOXY_STATIC_LIBRARIES:INTERNAL=epoxy;dl;GL;EGL
-EPOXY_STATIC_LIBRARY_DIRS:INTERNAL=
-EPOXY_STATIC_LIBS:INTERNAL=
-EPOXY_STATIC_LIBS_L:INTERNAL=
-EPOXY_STATIC_LIBS_OTHER:INTERNAL=
-EPOXY_STATIC_LIBS_PATHS:INTERNAL=
-EPOXY_VERSION:INTERNAL=1.5.4
-EPOXY_epoxy_INCLUDEDIR:INTERNAL=
-EPOXY_epoxy_LIBDIR:INTERNAL=
-EPOXY_epoxy_PREFIX:INTERNAL=
-EPOXY_epoxy_VERSION:INTERNAL=
 //Details about finding NUMPY
 FIND_PACKAGE_MESSAGE_DETAILS_NUMPY:INTERNAL=[/opt/conda/envs/bevbert/lib/python3.6/site-packages/numpy/core/include][v()]
 //Details about finding OpenCV
 FIND_PACKAGE_MESSAGE_DETAILS_OpenCV:INTERNAL=[/usr][v4.2.0()]
-//Details about finding OpenGL
-FIND_PACKAGE_MESSAGE_DETAILS_OpenGL:INTERNAL=[/usr/lib/x86_64-linux-gnu/libOpenGL.so][/usr/lib/x86_64-linux-gnu/libEGL.so][/usr/include][cfound components:  OpenGL EGL ][v()]
 //Details about finding OpenMP
 FIND_PACKAGE_MESSAGE_DETAILS_OpenMP:INTERNAL=[TRUE][c ][v4.5()]
 //Details about finding OpenMP_CXX
@@ -563,22 +503,40 @@ JSONCPP_jsoncpp_INCLUDEDIR:INTERNAL=
 JSONCPP_jsoncpp_LIBDIR:INTERNAL=
 JSONCPP_jsoncpp_PREFIX:INTERNAL=
 JSONCPP_jsoncpp_VERSION:INTERNAL=
-//ADVANCED property for variable: OPENGL_EGL_INCLUDE_DIR
-OPENGL_EGL_INCLUDE_DIR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_GLX_INCLUDE_DIR
-OPENGL_GLX_INCLUDE_DIR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_INCLUDE_DIR
-OPENGL_INCLUDE_DIR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_egl_LIBRARY
-OPENGL_egl_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_glu_LIBRARY
-OPENGL_glu_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_glx_LIBRARY
-OPENGL_glx_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_opengl_LIBRARY
-OPENGL_opengl_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: OPENGL_xmesa_INCLUDE_DIR
-OPENGL_xmesa_INCLUDE_DIR-ADVANCED:INTERNAL=1
+OSMESA_CFLAGS:INTERNAL=
+OSMESA_CFLAGS_I:INTERNAL=
+OSMESA_CFLAGS_OTHER:INTERNAL=
+OSMESA_FOUND:INTERNAL=1
+OSMESA_INCLUDEDIR:INTERNAL=/usr/include
+OSMESA_INCLUDE_DIRS:INTERNAL=
+OSMESA_LDFLAGS:INTERNAL=-lOSMesa
+OSMESA_LDFLAGS_OTHER:INTERNAL=
+OSMESA_LIBDIR:INTERNAL=/usr/lib/x86_64-linux-gnu
+OSMESA_LIBRARIES:INTERNAL=OSMesa
+OSMESA_LIBRARY_DIRS:INTERNAL=
+OSMESA_LIBS:INTERNAL=
+OSMESA_LIBS_L:INTERNAL=
+OSMESA_LIBS_OTHER:INTERNAL=
+OSMESA_LIBS_PATHS:INTERNAL=
+OSMESA_PREFIX:INTERNAL=/usr
+OSMESA_STATIC_CFLAGS:INTERNAL=
+OSMESA_STATIC_CFLAGS_I:INTERNAL=
+OSMESA_STATIC_CFLAGS_OTHER:INTERNAL=
+OSMESA_STATIC_INCLUDE_DIRS:INTERNAL=
+OSMESA_STATIC_LDFLAGS:INTERNAL=-lOSMesa;-lpthread;-pthread;-lm;-ldl
+OSMESA_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread
+OSMESA_STATIC_LIBDIR:INTERNAL=
+OSMESA_STATIC_LIBRARIES:INTERNAL=OSMesa;pthread;m;dl
+OSMESA_STATIC_LIBRARY_DIRS:INTERNAL=
+OSMESA_STATIC_LIBS:INTERNAL=
+OSMESA_STATIC_LIBS_L:INTERNAL=
+OSMESA_STATIC_LIBS_OTHER:INTERNAL=
+OSMESA_STATIC_LIBS_PATHS:INTERNAL=
+OSMESA_VERSION:INTERNAL=8.0.0
+OSMESA_osmesa_INCLUDEDIR:INTERNAL=
+OSMESA_osmesa_LIBDIR:INTERNAL=
+OSMESA_osmesa_PREFIX:INTERNAL=
+OSMESA_osmesa_VERSION:INTERNAL=
 //Result of TRY_COMPILE
 OpenMP_COMPILE_RESULT_CXX_fopenmp:INTERNAL=TRUE
 //ADVANCED property for variable: OpenMP_CXX_FLAGS
@@ -609,13 +567,13 @@ PYTHON_MODULE_EXTENSION:INTERNAL=.cpython-36m-x86_64-linux-gnu.so
 PYTHON_MODULE_PREFIX:INTERNAL=
 //CMAKE_INSTALL_PREFIX during last run
 _GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=/usr/local
-__pkg_config_arguments_EPOXY:INTERNAL=REQUIRED;epoxy
 __pkg_config_arguments_JSONCPP:INTERNAL=REQUIRED;jsoncpp
-__pkg_config_checked_EPOXY:INTERNAL=1
+__pkg_config_arguments_OSMESA:INTERNAL=REQUIRED;osmesa
 __pkg_config_checked_JSONCPP:INTERNAL=1
-//ADVANCED property for variable: pkgcfg_lib_EPOXY_epoxy
-pkgcfg_lib_EPOXY_epoxy-ADVANCED:INTERNAL=1
+__pkg_config_checked_OSMESA:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_JSONCPP_jsoncpp
 pkgcfg_lib_JSONCPP_jsoncpp-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_OSMESA_OSMesa
+pkgcfg_lib_OSMESA_OSMesa-ADVANCED:INTERNAL=1
 prefix_result:INTERNAL=/usr/lib/x86_64-linux-gnu
 

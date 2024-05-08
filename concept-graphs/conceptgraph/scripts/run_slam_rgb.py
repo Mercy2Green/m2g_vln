@@ -40,6 +40,7 @@ def get_parser() -> argparse.ArgumentParser:
     
     parser.add_argument("--load_semseg", action="store_true",
                         help="Load GT semantic segmentation and run fusion on them. ")
+    parser.add_argument("--trajectory", type=list, default=None,)
     
     return parser
 
@@ -69,6 +70,7 @@ def main(args: argparse.Namespace):
         embedding_dir = embedding_dir,
         embedding_dim = embedding_dim,
         relative_pose=False,
+        trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec"]
     )
     
     slam = PointFusion(

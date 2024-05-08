@@ -33,9 +33,6 @@ from gradslam.structures.rgbdimages import RGBDImages
 
 from conceptgraph.utils.general_utils import to_scalar
 
-import configparser
-import ast
-
 
 
 
@@ -357,7 +354,6 @@ class R2RDataset(GradSLAMDataset):
         config_dict,
         basedir,
         sequence, # the scan_id
-        trajectory, # The viewpoint_id list
         stride: Optional[int] = None,
         start: Optional[int] = 0,
         end: Optional[int] = -1,
@@ -366,12 +362,15 @@ class R2RDataset(GradSLAMDataset):
         load_embeddings: Optional[bool] = False,
         embedding_dir: Optional[str] = "embeddings",
         embedding_dim: Optional[int] = 512,
-        relative_pose: Optional[bool] = True,
+        relative_pose: bool = True, # If True, the pose is relative to the first frame
         **kwargs,
     ):
         self.input_folder = os.path.join(basedir, sequence)
-        self.pose_path = os.path.join(self.input_folder,"camera_parameter", "camera_parameter_"+ sequence + ".conf")
-        self.trajectory = trajectory # The viewpoint_id list
+        self.pose_path = os.path.join(self.input_folder, "undistorted_camera_parameters", sequence + ".conf")
+
+        self.intrinsics_matrix = []
+        self.intrinsics_matrix = self.get_intrinsic_matrix()
+
 
         super().__init__(
             config_dict,
@@ -383,47 +382,171 @@ class R2RDataset(GradSLAMDataset):
             load_embeddings=load_embeddings,
             embedding_dir=embedding_dir,
             embedding_dim=embedding_dim,
-            relative_pose=relative_pose,
             **kwargs,
         )
+
+    def get_c_d_p_i(self):
+        color_paths = []
+        depth_paths = []
+        intrinsics_matrix = []
+        poses = []
+        last_intrinsics_matrix = None
+
+        pose_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
+
+        with open(self.pose_path, 'r') as file:
+            for line in file:
+                if line.startswith('scan'):
+                    parts = line.split()
+                    depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
+                    color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
+                    _poses = [float(i) for i in parts[3:19]]
+                    # _poses convert to 4*4 np.array
+                    _poses = np.array(_poses).reshape(4, 4)
+                    _poses = _poses @ pose_conver_matix
+                    # poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4)) # maybe is reshape error.
+                    poses.append(torch.tensor(_poses).reshape(4, 4))
+                    if last_intrinsics_matrix is not None:
+                        intrinsics_matrix.append(last_intrinsics_matrix)
+                elif line.startswith('intrinsics_matrix'):
+                    parts = line.split()
+                    last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+
+
+        return color_paths, depth_paths, poses, intrinsics_matrix
+
+    def get_intrinsic_matrix(self):
+
+        intrinsics_matrix = []
+        last_intrinsics_matrix = None
+        with open(self.pose_path, 'r') as file:
+            for line in file:
+                if line.startswith('scan'):
+                    parts = line.split()
+                    if last_intrinsics_matrix is not None:
+                        intrinsics_matrix.append(last_intrinsics_matrix)
+                elif line.startswith('intrinsics_matrix'):
+                    parts = line.split()
+                    last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
+
+        # intrinsic_matrix is a list of lists, calcualte the mean of each element and save as final intrinsic matrix
+        intrinsic_matrix = np.mean(intrinsics_matrix, axis=0)
+
+        return intrinsic_matrix
 
     def get_filepaths(self):
 
         color_paths = []
         depth_paths = []
 
-        config = configparser.ConfigParser()
-        config.read(self.pose_path)
-        for viewpoint_id in self.trajectory:
-            # Use ast.literal_eval to convert string representation of list to actual list
-            images_name_list = ast.literal_eval(config.get(viewpoint_id, 'images_name_list'))
-
-            # Append each image name to color_images list
-            for image_name in images_name_list:
-                color_paths.append(os.path.join(self.input_folder,"color_image", image_name))
-
-            # Use ast.literal_eval to convert string representation of list to actual list
-            depths_name_list = ast.literal_eval(config.get(viewpoint_id, 'depths_name_list'))
-
-            # Append each depth image name to depth_images list
-            for depth_image_name in depths_name_list:
-                depth_paths.append(os.path.join(self.input_folder,"depth_image",depth_image_name))
+        with open(self.pose_path, 'r') as file:
+            for line in file:
+                if line.startswith('scan'):
+                    parts = line.split()
+                    depth_paths.append(os.path.join(self.input_folder, "undistorted_depth_images", parts[1]))
+                    color_paths.append(os.path.join(self.input_folder, "undistorted_color_images", parts[2]))
 
         embedding_paths = []
+
         return color_paths, depth_paths, embedding_paths
 
     def load_poses(self):
+
+        ## need have a dict. key is the image name, value is the pose.
+        color_image_file_name = None
         poses = []
 
-        config = configparser.ConfigParser()
-        config.read(self.pose_path)
-        for viewpoint_id in self.trajectory:
-            data = config.get(viewpoint_id, 'poses_list')
-            poses_list_str = ast.literal_eval(data)
-            for pose in poses_list_str:
-                poses.append(torch.tensor(np.reshape(np.array(pose), (4, 4))))
+        # pose_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]) #####
 
+        with open(self.pose_path, 'r') as file:
+            for line in file:
+                if line.startswith('scan'):
+                    parts = line.split()
+                    color_image_file_name = parts[2]
+                    pose_file_name = color_image_file_name.replace("i", "pose_").replace(".jpg", ".txt")
+
+                    pose_file_path = os.path.join(self.input_folder, "matterport_camera_poses", pose_file_name)
+
+                    # Open the pose file and read the lines
+                    with open(pose_file_path, 'r') as file:
+                        lines = file.readlines()
+
+                    # Parse the lines into a 4x4 matrix
+                    pose = []
+                    for line in lines:
+                        pose.append([float(i) for i in line.split()])
+                    
+                    # Convert the pose to a np.array
+                    pose = np.array(pose)
+                    # _poses = pose @ pose_conver_matix
+                    _poses= pose
+
+                    # Convert the pose to a PyTorch tensor
+                    pose = torch.tensor(_poses)
+
+                    poses.append(pose)
         return poses
+
+    # def read_embedding_from_file(self, embedding_file_path):
+    #     print(embedding_file_path)
+    #     embedding = torch.load(embedding_file_path, map_location="cpu")
+    #     return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
+
+    # def __getitem__(self, index):
+    #     color_path = self.color_paths[index]
+    #     depth_path = self.depth_paths[index]
+    #     color = np.asarray(imageio.imread(color_path), dtype=float)
+    #     color = self._preprocess_color(color)
+    #     color = torch.from_numpy(color)
+    #     if ".png" in depth_path:
+    #         # depth_data = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
+    #         depth = np.asarray(imageio.imread(depth_path), dtype=np.int64)
+    #     elif ".exr" in depth_path:
+    #         depth = readEXR_onlydepth(depth_path)
+    #     elif ".npy" in depth_path:
+    #         depth = np.load(depth_path)
+    #     else:
+    #         raise NotImplementedError
+        
+    #     intrinsics_matrix = self.intrinsics_matrix[index]
+
+    #     # K = as_intrinsics_matrix([self.fx, self.fy, self.cx, self.cy])
+    #     K = as_intrinsics_matrix(intrinsics_matrix)
+    #     K = torch.from_numpy(K)
+
+    #     if self.distortion is not None:
+    #         # undistortion is only applied on color image, not depth!
+    #         color = cv2.undistort(color, K, self.distortion)
+
+    #     depth = self._preprocess_depth(depth)
+    #     depth = torch.from_numpy(depth)
+
+    #     K = datautils.scale_intrinsics(
+    #         K, self.height_downsample_ratio, self.width_downsample_ratio
+    #     )
+    #     intrinsics = torch.eye(4).to(K)
+    #     intrinsics[:3, :3] = K
+
+    #     pose = self.transformed_poses[index]
+
+    #     if self.load_embeddings:
+    #         embedding = self.read_embedding_from_file(self.embedding_paths[index])
+    #         return (
+    #             color.to(self.device).type(self.dtype),
+    #             depth.to(self.device).type(self.dtype),
+    #             intrinsics.to(self.device).type(self.dtype),
+    #             pose.to(self.device).type(self.dtype),
+    #             embedding.to(self.device),  # Allow embedding to be another dtype
+    #             # self.retained_inds[index].item(),
+    #         )
+
+    #     return (
+    #         color.to(self.device).type(self.dtype),
+    #         depth.to(self.device).type(self.dtype),
+    #         intrinsics.to(self.device).type(self.dtype),
+    #         pose.to(self.device).type(self.dtype),
+    #         # self.retained_inds[index].item(),
+    #     )
 
 class ICLDataset(GradSLAMDataset):
     def __init__(
@@ -1222,22 +1345,15 @@ if __name__ == "__main__":
     )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/img_features",
-        sequence="17DRP5sb8fy",
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec", "51857544c192476faebf212acb1b3d90"],
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c"],//
-        # trajectory=["0e92a69a50414253a23043758f111cec"],
-        # trajectory=["51857544c192476faebf212acb1b3d90"],
-        trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec"],
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90"],
+        basedir="/media/m2g/Data/Datasets/dataset/test",
+        sequence="1LXtFkjw3qL",
         # start=0,
         # end=1900,
         # stride=100,
         # desired_height=680,
         # desired_width=1200,
-        desired_height=224,
-        desired_width=224,
-        
+        desired_height=1024,
+        desired_width=1280,
     )
     # dataset = R2RDataset(
     #     config_dict=cfg,
@@ -1284,14 +1400,21 @@ if __name__ == "__main__":
     # poses = poses.float()
     # print(intrinsics)
 
-    colors, depths, poses = [], [], []
+    colors, depths, poses, intrinsics = [], [], [], []
     intrinsics = None
-    # for idx in range(len(dataset)):
     for idx in range(len(dataset)):
-        _color, _depth, intrinsics, _pose = dataset[idx]
+        _color, _depth, _intrinsics, _pose = dataset[idx]
+        if intrinsics is None:
+            intrinsics = _intrinsics
         colors.append(_color)
         depths.append(_depth)
         poses.append(_pose)
+        intrinsics = (intrinsics * idx + _intrinsics) / (idx + 1)
+        # print(f"{idx}:{len(dataset)} index is loaded {_color}, {_depth}, {_intrinsics}, {_pose}")
+        print(f"{idx}:{len(dataset)} index is loaded {_intrinsics}")
+
+    # calcutlate the intrinsics to only one matrix
+    print("Let see the intrinsics",intrinsics)
 
     colors = torch.stack(colors)
     depths = torch.stack(depths)
@@ -1304,6 +1427,8 @@ if __name__ == "__main__":
     depths = depths.float()
     intrinsics = intrinsics.float()
     poses = poses.float()
+    print(intrinsics)
+
 
     # create rgbdimages object
     rgbdimages = RGBDImages(
@@ -1314,19 +1439,17 @@ if __name__ == "__main__":
         channels_first=False,
         has_embeddings=False,  # KM
     )
-    # SLAM
-    slam = PointFusion(odom="gt",dsratio=1, device="cuda:0", use_embeddings=False)
-    pointclouds, recovered_poses = slam(rgbdimages)
 
-    # ALL project from One point.
+    # SLAM
+    slam = PointFusion(odom="gt", dsratio=1, device="cuda:0", use_embeddings=False)
+    pointclouds, recovered_poses = slam(rgbdimages)
 
     import open3d as o3d
 
     print(pointclouds.colors_padded.shape)
     pcd = pointclouds.open3d(0)
     o3d.visualization.draw_geometries([pcd])
-    print(poses.shape)
-    print(poses)
+
     # from icl_dataset import ICLWithCLIPEmbeddings
 
     # dataset = ICLWithCLIPEmbeddings(

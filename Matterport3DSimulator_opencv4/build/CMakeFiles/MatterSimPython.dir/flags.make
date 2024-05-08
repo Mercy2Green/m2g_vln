@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_FLAGS =  -std=c++11 -fopenmp -O3 -DNDEBUG -fPIC -fvisibility=hidden   -std=c++14 -flto -fno-fat-lto-objects
 
-CXX_DEFINES = -DEGL_RENDERING -DMatterSimPython_EXPORTS
+CXX_DEFINES = -DMatterSimPython_EXPORTS -DOSMESA_RENDERING
 
 CXX_INCLUDES = -I/root/mount/Matterport3DSimulator/include -I/root/mount/Matterport3DSimulator/pybind11/include -I/opt/conda/envs/bevbert/include/python3.6m -I/opt/conda/envs/bevbert/lib/python3.6/site-packages/numpy/core/include -isystem /usr/include/opencv4 
 

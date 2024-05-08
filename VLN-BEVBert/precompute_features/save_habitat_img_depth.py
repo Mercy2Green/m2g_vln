@@ -16,9 +16,11 @@ import MatterSim
 from utils.habitat_utils import HabitatUtils
 from scipy.spatial.transform import Rotation as R
 
-VIEWPOINT_SIZE = 36
-WIDTH = 800
-HEIGHT = 800
+from configparser import ConfigParser
+
+VIEWPOINT_SIZE = 12
+WIDTH = 224
+HEIGHT = 224
 VFOV = 90
 HFOV = 60
 
@@ -35,6 +37,39 @@ def build_simulator(connectivity_dir, scan_dir):
     sim.setBatchSize(1)
     sim.initialize()
     return sim
+
+
+def transfrom3D(xyzhe):
+    '''
+    Return (N, 4, 4) transformation matrices from (N,5) x,y,z,heading,elevation 
+    '''
+    theta_x = xyzhe[:,4] # elevation
+    cx = np.cos(theta_x)
+    sx = np.sin(theta_x)
+
+    theta_y = xyzhe[:,3] # heading
+    cy = np.cos(theta_y)
+    sy = np.sin(theta_y)
+
+    T = np.zeros([xyzhe.shape[0], 4, 4])
+    T[:,0,0] =  cy
+    T[:,0,1] =  sx*sy
+    T[:,0,2] =  cx*sy 
+    T[:,0,3] =  xyzhe[:,0] # x
+
+    T[:,1,0] =  0
+    T[:,1,1] =  cx
+    T[:,1,2] =  -sx
+    T[:,1,3] =  xyzhe[:,1] # y
+
+    T[:,2,0] =  -sy
+    T[:,2,1] =  cy*sx
+    T[:,2,2] =  cy*cx
+    T[:,2,3] =  xyzhe[:,2] # z
+
+    T[:,3,3] =  1
+    return T.astype(np.float32)
+
 
 def load_viewpoint_ids(connectivity_dir):
     viewpoint_ids = []
@@ -64,8 +99,8 @@ def get_img(proc_id, out_queue, scanvp_list, args):
             pre_scan = scan_id
 
         camera_intrinsics = np.array([
-            [1 / np.tan(HFOV / 2.), 0., 0., 0.],
-            [0., 1 / np.tan(HFOV / 2.), 0., 0.],
+            [((1 / np.tan(math.radians(HFOV) / 2.))*WIDTH) / 2, 0., WIDTH/2, 0.],
+            [0., ((1 / np.tan(math.radians(HFOV) / 2.))*HEIGHT) / 2, HEIGHT/2, 0.],
             [0., 0., 1, 0],
             [0., 0., 0, 1]])
         
@@ -76,16 +111,19 @@ def get_img(proc_id, out_queue, scanvp_list, args):
 
         transformation_matrix_list = []
         images = []
+        depths = []
         images_name_list = []
+        depths_name_list = []
         for ix in range(VIEWPOINT_SIZE): #Start MatterSim
             if ix == 0:
-                sim.newEpisode([scan_id], [viewpoint_id], [0], [math.radians(-30)])
-            elif ix % 12 == 0:
-                sim.makeAction([0], [1.0], [1.0])
+                # sim.newEpisode([scan_id], [viewpoint_id], [0], [math.radians(-30)])
+                sim.newEpisode([scan_id], [viewpoint_id], [0], [0])
+            # elif ix % 12 == 0:
+            #     sim.makeAction([0], [1.0], [1.0])
             else:
                 sim.makeAction([0], [1.0], [0])
             state = sim.getState()[0]
-            assert state.viewIndex == ix
+            # assert state.viewIndex == ix
 
             x, y, z, h, e = state.location.x, state.location.y, state.location.z, state.heading, state.elevation
             habitat_position = [x, z-1.25, -y]
@@ -94,40 +132,59 @@ def get_img(proc_id, out_queue, scanvp_list, args):
             rotvec_h = R.from_rotvec(mp3d_h)
             rotvec_e = R.from_rotvec(mp3d_e)
             habitat_rotation = (rotvec_h * rotvec_e).as_quat()
-
-            # Convert quaternion to rotation matrix
-            rotation_matrix = R.from_quat(habitat_rotation).as_matrix()
-
-            # Create 4x4 transformation matrix
-            transformation_matrix = np.eye(4)
-            transformation_matrix[:3, :3] = rotation_matrix
-            transformation_matrix[:3, 3] = habitat_position
-
-            # transfor the transformation_matrix to a line vector store by row
-            transformation_matrix = transformation_matrix.reshape(-1)
-            transformation_matrix_list.append(transformation_matrix)
-
-            # print(habitat_position, habitat_rotation, transformation_matrix, sep='\n')
-
             habitat_sim.sim.set_agent_state(habitat_position, habitat_rotation)
 
-            if args.img_type == 'rgb':
-                image = habitat_sim.render('rgb')[:, :, ::-1]
-                image_name = f"{scan_id}_{viewpoint_id}_{args.img_type}_{ix}.jpg"
-            elif args.img_type == 'depth':
-                image = habitat_sim.render('depth')
-                image_name = f"{scan_id}_{viewpoint_id}_{args.img_type}_{ix}.png"
+            _x = habitat_position[0]
+            _y = habitat_position[1]
+            _z = habitat_position[2]
+            _h = mp3d_h[1]
+            _e = mp3d_e[0]
+
+            cx = np.cos(_e)
+            sx = np.sin(_e)
+            cy = np.cos(_h)
+            sy = np.sin(_h)
+
+            T = np.zeros([4, 4])
+            T[0,0] = cy
+            T[0,1] = sx*sy
+            T[0,2] = cx*sy
+            T[0,3] = _x
+            T[1,0] = 0
+            T[1,1] = cx
+            T[1,2] = -sx
+            T[1,3] = _y
+            T[2,0] = -sy
+            T[2,1] = cy*sx
+            T[2,2] = cy*cx
+            T[2,3] = _z
+            T[3,3] = 1
+            T = T.astype(np.float32)
+
+            # T is camera poses, I need convert it to extrinsic matrix
+            T = np.linalg.inv(T)
+            # for i in range(2):
+            #     T[i,3] = T[i,3] * 10
+
+            T = T.reshape(-1)
+            T = T.tolist()
+            transformation_matrix_list.append(T)
+
+            image = habitat_sim.render('rgb')[:, :, ::-1]
+            image_name = f"{viewpoint_id}_i_{ix}.jpg"
             
+            depth = habitat_sim.render('depth')
+            # each depth value is in [0, 1], we need to convert it to [0, 255]
+            depth = (depth * 255).astype(np.uint8)
+            depth_name = f"{viewpoint_id}_d_{ix}.png"
 
             images_name_list.append(image_name)
-
-            # # make a dir named scan_id
-            # os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}", exist_ok=True)
-            # cv2.imwrite(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/{image_name}", image)
+            depths_name_list.append(depth_name)
 
             images.append(image)
+            depths.append(depth)
         images = np.stack(images, axis=0)
-        out_queue.put((scan_id, viewpoint_id, images, images_name_list, transformation_matrix_list, camera_intrinsics))
+        out_queue.put((scan_id, viewpoint_id, images, images_name_list, depths, depths_name_list, transformation_matrix_list, camera_intrinsics))
 
         
 
@@ -161,19 +218,43 @@ def build_img_file(args):
     progress_bar = ProgressBar(max_value=len(scanvp_list))
     progress_bar.start()
 
+    config = ConfigParser()
 
     while num_finished_workers < num_workers:
         res = out_queue.get()
         if res is None:
             num_finished_workers += 1
         else:
-            scan_id, viewpoint_id, images, images_name_list, transformation_matrix_list, camera_intrinsics = res
+            scan_id, viewpoint_id, images, images_name_list, depths, depths_name_list, transformation_matrix_list, camera_intrinsics = res
             # create a .txt file save the camera_intrinsics, and only save fx, fy, cx, cy
             os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}", exist_ok=True)
-            with open(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/camera_intrinsics_{scan_id}.txt", 'w') as f:
-                f.write(f"{camera_intrinsics[0, 0]} {camera_intrinsics[1, 1]} {camera_intrinsics[0, 2]} {camera_intrinsics[1, 2]}")
+            os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/camera_parameter", exist_ok=True)
+            os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/color_image", exist_ok=True)
+            os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/depth_image", exist_ok=True)
+
+
+
+            # Add parameters to config
+            config[viewpoint_id] = {
+                'scan_id': scan_id,
+                'viewpoint_id': viewpoint_id,
+                'images_name_list': images_name_list,
+                'depths_name_list': depths_name_list,
+                'poses_list': transformation_matrix_list,
+                'camera_intrinsics': camera_intrinsics.tolist()  # convert numpy array to list
+            }
+
+            with open(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/camera_parameter/camera_parameter_{scan_id}.conf", 'w') as f:
+                # f.write(f"{camera_intrinsics[0, 0]} {camera_intrinsics[1, 1]} {camera_intrinsics[0, 2]} {camera_intrinsics[1, 2]}")
+                config.write(f)
+
             for idx in range(len(images_name_list)):
-                cv2.imwrite(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/{images_name_list[idx]}", images[idx])
+                cv2.imwrite(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/color_image/{images_name_list[idx]}", images[idx])
+                cv2.imwrite(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/depth_image/{depths_name_list[idx]}", depths[idx])
+
+            
+
+                
 
             num_finished_vps += 1
             progress_bar.update(num_finished_vps)
@@ -237,3 +318,5 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     build_img_file(args)
+
+    # /root/mount/Matterport3DSimulator/data/v1/scans

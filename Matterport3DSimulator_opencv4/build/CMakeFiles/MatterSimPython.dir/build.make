@@ -128,8 +128,6 @@ MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libopencv_x
 MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libopencv_photo.so.4.2.0
 MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.4.2.0
 MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.2.0
-MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libEGL.so
-MatterSim.cpython-36m-x86_64-linux-gnu.so: /usr/lib/x86_64-linux-gnu/libOpenGL.so
 MatterSim.cpython-36m-x86_64-linux-gnu.so: CMakeFiles/MatterSimPython.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/root/mount/Matterport3DSimulator/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared module MatterSim.cpython-36m-x86_64-linux-gnu.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/MatterSimPython.dir/link.txt --verbose=$(VERBOSE)

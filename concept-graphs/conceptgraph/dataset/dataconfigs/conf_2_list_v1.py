@@ -38,66 +38,60 @@ import os
 import torch
 import numpy as np
 
-import configparser
-import ast
-
-
+color_images = []
+depth_images = []
+intrinsics_matrix = []
+poses = []
 last_intrinsics_matrix = None
 
 input_folder = "/media/m2g/Data/Datasets/"
 
-camera_parameter_folder = "camera_parameter"
-image_folder = "color_image"
-depth_folder = "depth_image"
+image_folder = "undistorted_rgb_images"
+depth_folder = "undistorted_depth_images"
 
 y_conver_matix = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
 
-scan_id = "17DRP5sb8fy"  # You already have the scan_id
+with open('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R_original_cam_pose_file/1LXtFkjw3qL.conf', 'r') as file:
+    for line in file:
+        if line.startswith('scan'):
+            parts = line.split()
+            depth_images.append(os.path.join(input_folder, depth_folder, parts[1]))
+            color_images.append(os.path.join(input_folder, image_folder, parts[2]))
+            _poses = [float(i) for i in parts[3:19]]
+            # _poses convert to 4*4 np.array
+            _poses = np.array(_poses).reshape(4, 4)
+            _poses = _poses @ y_conver_matix
+            _poses = torch.inverse(torch.tensor(_poses))
+            print(_poses)
+            # poses.append(torch.tensor([float(i) for i in parts[3:19]]).reshape(4, 4))
+            if last_intrinsics_matrix is not None:
+                intrinsics_matrix.append(last_intrinsics_matrix)
+        elif line.startswith('intrinsics_matrix'):
+            parts = line.split()
+            last_intrinsics_matrix = [float(parts[i]) for i in [1, 5, 3, 6]]  # Swap 3rd and 5th elements
 
-color_images = []
-depth_images = []
-poses_list = []
-intrinsics_matrix = None
 
-viewpoint_list = ["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec"]
+# Load pose
 
+# pose file name is 0e92a69a50414253a23043758f111cec_pose_0_0.txt, 0e92a69a50414253a23043758f111cec_pose_0_1.txt, 0e92a69a50414253a23043758f111cec_pose_1_4.txt
+# In the pose file there are 4*4 matrix
+# 0.856281 -0.320562 -0.404999 -2.22022 
+# 0.515729 0.57375 0.636266 -0.48064 
+# 0.0284057 -0.753692 0.656614 1.55139 
+# 0 0 0 1 
 
-config = configparser.ConfigParser()
-config.read('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R_original_cam_pose_file/camera_parameter_17DRP5sb8fy.conf')
-
-for viewpoint_id in viewpoint_list:
-    print(viewpoint_id)
-
-    # Use ast.literal_eval to convert string representation of list to actual list
-    images_name_list = ast.literal_eval(config.get(viewpoint_id, 'images_name_list'))
-
-    # Append each image name to color_images list
-    for image_name in images_name_list:
-        color_images.append(image_name)
-
-    # Use ast.literal_eval to convert string representation of list to actual list
-    depths_name_list = ast.literal_eval(config.get(viewpoint_id, 'depths_name_list'))
-
-    # Append each depth image name to depth_images list
-    for depth_image_name in depths_name_list:
-        depth_images.append(depth_image_name)
-
-    # Use ast.literal_eval to convert string representation of list to actual list
-
-    data = config.get(viewpoint_id, 'poses_list')
-    poses_list_str = ast.literal_eval(data)
-    for pose in poses_list_str:
-        poses_list.append(torch.tensor(np.reshape(np.array(pose), (4, 4))))
-
-    # get the intrinsics_matrix, the data layout in the conf file is like this:
-    # camera_intrinsics = [[-0.15611995216165922, 0.0, 0.0, 0.0], [0.0, -0.15611995216165922, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-    intrinsics_matrix = ast.literal_eval(config.get(viewpoint_id, 'camera_intrinsics'))
+# I have the color image file name 0b22fa63d0f54a529c525afbf2e8bb25_i0_0.jpg, 0b22fa63d0f54a529c525afbf2e8bb25_i0_1.jpg, 0b22fa63d0f54a529c525afbf2e8bb25_i1_4.jpg, I want to load the pose file corresponding to the color image file.
 
 
 
-for ix in range(len(color_images)):
-    # print(color_images[ix])
-    # print(depth_images[ix])
-    # print(poses_list[ix])
-    print(intrinsics_matrix)
+# Ensure all lists have the same length
+# assert len(color_images) == len(depth_images) == len(intrinsics_matrix) == len(poses)
 
+# print all lists
+# print(len(color_images))
+# print(len(depth_images))
+# print(len(intrinsics_matrix))
+# print(len(poses))
+
+# print(color_images)
+# print(intrinsics_matrix)

@@ -1,9 +1,14 @@
 dataset_name: 'r2r'
 camera_params:
-  image_height: 1024
-  image_width: 1280
-  fx: 1169.621094
-  fy: 1167.105103
-  cx: 646.295044
-  cy: 489.927032
-  png_depth_scale: 1000.0 #for depth image in png format
+  image_height: 224
+  image_width: 224
+  fx: 193.98
+  fy: 193.98
+  cx: 112
+  cy: 112
+  png_depth_scale: 1 #for depth image in png format
+
+  # fx: 193.98969044771428
+  # fy: 193.98969044771428
+  # cx: 112
+  # cy: 112
