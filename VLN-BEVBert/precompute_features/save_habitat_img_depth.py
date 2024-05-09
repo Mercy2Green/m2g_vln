@@ -134,11 +134,19 @@ def get_img(proc_id, out_queue, scanvp_list, args):
             habitat_rotation = (rotvec_h * rotvec_e).as_quat()
             habitat_sim.sim.set_agent_state(habitat_position, habitat_rotation)
 
-            _x = habitat_position[0]
-            _y = habitat_position[1]
-            _z = habitat_position[2]
-            _h = mp3d_h[1]
-            _e = mp3d_e[0]
+            # scale = 15
+
+            # _x =  - y * 42
+            # _y =  (z-1.25) * scale # Ok, don't change
+            # _z =  - x * scale # ok for now
+            # _h = h # in concept graph is not counter-clock heading
+
+            _x =  x
+            _y =  - (z-1.25)
+            _z =  y
+            _h = h # in concept graph is not counter-clock heading 
+            _e = mp3d_e[0] 
+            # print("_x", _x, "_y", _y, "_z", _z)
 
             cx = np.cos(_e)
             sx = np.sin(_e)
@@ -162,9 +170,7 @@ def get_img(proc_id, out_queue, scanvp_list, args):
             T = T.astype(np.float32)
 
             # T is camera poses, I need convert it to extrinsic matrix
-            T = np.linalg.inv(T)
-            # for i in range(2):
-            #     T[i,3] = T[i,3] * 10
+            # T = np.linalg.inv(T)
 
             T = T.reshape(-1)
             T = T.tolist()

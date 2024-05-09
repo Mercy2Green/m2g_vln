@@ -5,8 +5,8 @@ camera_params:
   fx: 193.98
   fy: 193.98
   cx: 112
-  cy: 112
-  png_depth_scale: 1 #for depth image in png format
+  cy: 112 
+  png_depth_scale: 25.5 #for depth image in png format 0~10 is ok.
 
   # fx: 193.98969044771428
   # fy: 193.98969044771428

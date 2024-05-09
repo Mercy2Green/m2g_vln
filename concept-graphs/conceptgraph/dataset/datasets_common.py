@@ -421,7 +421,10 @@ class R2RDataset(GradSLAMDataset):
             data = config.get(viewpoint_id, 'poses_list')
             poses_list_str = ast.literal_eval(data)
             for pose in poses_list_str:
-                poses.append(torch.tensor(np.reshape(np.array(pose), (4, 4))))
+                _pose = np.reshape(np.array(pose), (4, 4))
+                _pose_inv = np.linalg.inv(_pose)
+                # print(np.linalg.inv(_pose)[:3,3])
+                poses.append(torch.tensor(_pose))
 
         return poses
 
@@ -1224,17 +1227,20 @@ if __name__ == "__main__":
         config_dict=cfg,
         basedir="/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/img_features",
         sequence="17DRP5sb8fy",
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec", "51857544c192476faebf212acb1b3d90"],
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c"],//
+        trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d"],
+        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c"],
         # trajectory=["0e92a69a50414253a23043758f111cec"],
         # trajectory=["51857544c192476faebf212acb1b3d90"],
-        trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec"],
+        # trajectory=["0e92a69a50414253a23043758f111cec","558ba0761bf24428b9cf91e60333ea25"],
+        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758f111cec"],
         # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90"],
+        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c", "d160d2229e4148839ef3a43dbc0ecdc4"],
         # start=0,
         # end=1900,
         # stride=100,
         # desired_height=680,
         # desired_width=1200,
+        relative_pose=True,
         desired_height=224,
         desired_width=224,
         
@@ -1285,13 +1291,18 @@ if __name__ == "__main__":
     # print(intrinsics)
 
     colors, depths, poses = [], [], []
+    corrdinates = []
     intrinsics = None
+    VIEWPOINT_SIZE = 12
+
     # for idx in range(len(dataset)):
     for idx in range(len(dataset)):
         _color, _depth, intrinsics, _pose = dataset[idx]
         colors.append(_color)
         depths.append(_depth)
         poses.append(_pose)
+        if idx % VIEWPOINT_SIZE == 0:
+            corrdinates.append(_pose[:3, 3])
 
     colors = torch.stack(colors)
     depths = torch.stack(depths)
@@ -1315,8 +1326,12 @@ if __name__ == "__main__":
         has_embeddings=False,  # KM
     )
     # SLAM
+    # rgbdimages.plotly(0).show()
+
     slam = PointFusion(odom="gt",dsratio=1, device="cuda:0", use_embeddings=False)
     pointclouds, recovered_poses = slam(rgbdimages)
+    print(recovered_poses.shape)
+    print(recovered_poses)
 
     # ALL project from One point.
 
@@ -1324,9 +1339,21 @@ if __name__ == "__main__":
 
     print(pointclouds.colors_padded.shape)
     pcd = pointclouds.open3d(0)
-    o3d.visualization.draw_geometries([pcd])
-    print(poses.shape)
-    print(poses)
+
+    FOR1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=3, origin=[0, 0, 0])
+
+    visualize_list = [FOR1, pcd]
+    for idx in corrdinates:
+        # tensor idx to numpy.array
+        position = idx.cpu().numpy()
+        visualize_list.append(o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=position))
+
+    o3d.visualization.draw_geometries(visualize_list)   
+    # o3d.visualization.draw_geometries([FOR1, pcd]) 
+
+    # o3d.visualization.draw_geometries([FOR1, pcd])
+    # print(poses.shape)
+    # print(poses)
     # from icl_dataset import ICLWithCLIPEmbeddings
 
     # dataset = ICLWithCLIPEmbeddings(
