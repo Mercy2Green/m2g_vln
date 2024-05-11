@@ -1219,15 +1219,16 @@ if __name__ == "__main__":
     # )
 
     cfg = load_dataset_config(
-        "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
-        # "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        # "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+        "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
         #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
     )
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/img_features",
+        # basedir="/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/img_features",
+        basedir="/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features",
         sequence="17DRP5sb8fy",
-        trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d"],
+        trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d", "00ebbf3782c64d74aaf7dd39cd561175", "08c774f20c984008882da2b8547850eb", "cb66d4266148455bbddf5d059a483711"],
         # trajectory=["10c252c90fa24ef3b698c6f54d984c5c"],
         # trajectory=["0e92a69a50414253a23043758f111cec"],
         # trajectory=["51857544c192476faebf212acb1b3d90"],

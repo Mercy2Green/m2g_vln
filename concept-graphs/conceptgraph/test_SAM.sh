@@ -27,9 +27,9 @@
 
 # The ConceptGraphs-Detect 
 python scripts/generate_gsa_results.py \
-    --dataset_root "/data/vln_datasets/matterport3d/test" \
+    --dataset_root "/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features" \
     --dataset_config "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml" \
-    --scene_id "1LXtFkjw3qL" \
+    --scene_id "17DRP5sb8fy" \
     --class_set "ram" \
     --box_threshold 0.2 \
     --text_threshold 0.2 \

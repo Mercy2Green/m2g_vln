@@ -326,3 +326,4 @@ if __name__ == '__main__':
     build_img_file(args)
 
     # /root/mount/Matterport3DSimulator/data/v1/scans
+    # python ./precompute_features/save_habitat_img_depth.py --num_workers 4

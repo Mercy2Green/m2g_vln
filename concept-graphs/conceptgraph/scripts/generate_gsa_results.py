@@ -338,6 +338,7 @@ def main(args: argparse.Namespace):
         desired_width=args.desired_width,
         device="cpu",
         dtype=torch.float,
+        trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d", "00ebbf3782c64d74aaf7dd39cd561175", "08c774f20c984008882da2b8547850eb", "cb66d4266148455bbddf5d059a483711"]
     )
 
     global_classes = set()

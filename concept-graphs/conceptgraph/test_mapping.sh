@@ -22,12 +22,12 @@
 # python scripts/visualize_cfslam_results.py --result_path "/data/vln_datasets/matterport3d/test/1LXtFkjw3qL/pcd_saves/full_pcd_none_overlap_maskconf0.95_simsum1.2_dbscan.1_merge20_masksub.pkl.gz"
 
 # On the ConceptGraphs-Detect 
-SCENE_NAMES=1LXtFkjw3qL
+SCENE_NAMES=17DRP5sb8fy
 THRESHOLD=1.2
 python slam/cfslam_pipeline_batch.py \
-    dataset_root="/data/vln_datasets/matterport3d/test" \
+    dataset_root="/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features"  \
     dataset_config="/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml" \
-    scene_id=1LXtFkjw3qL \
+    scene_id=17DRP5sb8fy \
     spatial_sim_type=overlap \
     mask_conf_threshold=0.25 \
     match_method=sim_sum \

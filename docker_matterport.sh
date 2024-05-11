@@ -19,7 +19,7 @@ export LOCAL_MODEL_DIR=/home/lg1/peteryu_workspace/model
 # export MATTERPORT_SIMULATOR_DIR=/media/m2g/Data/Datasets/m2g_vln/Matterport3DSimulator
 # export MATTERPORT_SIMULATOR_OPENCV4_DIR=/media/m2g/Data/Datasets/m2g_vln/Matterport3DSimulator_opencv4
 
-docker run -ti --gpus '"device=2,3,4,5,6,7"' \
+docker run -ti --gpus '"device=6,7"' \
     --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/v1/scans \
     --mount type=bind,source=$MATTERPORT_SIMULATOR_DIR,target=/root/mount/Matterport3DSimulator \
     --mount type=bind,source=$BEVBERT_DIR,target=/root/mount/VLN-BEVBert \
