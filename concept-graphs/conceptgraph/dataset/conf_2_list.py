@@ -42,10 +42,6 @@ import configparser
 import ast
 
 
-last_intrinsics_matrix = None
-
-input_folder = "/media/m2g/Data/Datasets/"
-
 camera_parameter_folder = "camera_parameter"
 image_folder = "color_image"
 depth_folder = "depth_image"
@@ -63,7 +59,7 @@ viewpoint_list = ["10c252c90fa24ef3b698c6f54d984c5c", "0e92a69a50414253a23043758
 
 
 config = configparser.ConfigParser()
-config.read('/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R_original_cam_pose_file/camera_parameter_17DRP5sb8fy.conf')
+config.read('/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features/17DRP5sb8fy/camera_parameter/camera_parameter_17DRP5sb8fy.conf')
 
 for viewpoint_id in viewpoint_list:
     print(viewpoint_id)
@@ -96,8 +92,8 @@ for viewpoint_id in viewpoint_list:
 
 
 for ix in range(len(color_images)):
-    # print(color_images[ix])
-    # print(depth_images[ix])
-    # print(poses_list[ix])
+    print(color_images[ix])
+    print(depth_images[ix])
+    print(poses_list[ix])
     print(intrinsics_matrix)
 

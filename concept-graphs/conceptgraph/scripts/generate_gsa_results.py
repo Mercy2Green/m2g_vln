@@ -135,6 +135,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--exp_suffix", type=str, default=None,
                         help="The suffix of the folder that the results will be saved to. ")
     
+    parser.add_argument("--connectivity_dir", type=Path, required=True,)
+    
     return parser
 
 
@@ -302,9 +304,29 @@ def process_ai2thor_classes(classes: List[str], add_classes:List[str]=[], remove
     classes = [" ".join(obj_class) for obj_class in classes]
     
     return classes
+
+def load_viewpoint_ids(connectivity_dir):
+    viewpoint_ids = []
+    with open(os.path.join(connectivity_dir, 'scans.txt')) as f:
+        scans = [x.strip() for x in f]      # load all scans
+    for scan in scans:
+        with open(os.path.join(connectivity_dir, '%s_connectivity.json'%scan)) as f:
+            data = json.load(f)
+            viewpoint_ids.extend([(scan, x['image_id']) for x in data if x['included']])
+    print('Loaded %d viewpoints' % len(viewpoint_ids))
+    return viewpoint_ids
     
     
 def main(args: argparse.Namespace):
+
+    vp_list = []
+    scanvp_list = load_viewpoint_ids(args.connectivity_dir)
+    for scan_id, viewpoint_id in scanvp_list:
+        if scan_id == args.scene_id:
+            vp_list.append(viewpoint_id)
+    
+    print('Using %d viewpoints' % len(vp_list))
+
     ### Initialize the Grounding DINO model ###
     grounding_dino_model = Model(
         model_config_path=GROUNDING_DINO_CONFIG_PATH, 
@@ -338,7 +360,8 @@ def main(args: argparse.Namespace):
         desired_width=args.desired_width,
         device="cpu",
         dtype=torch.float,
-        trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d", "00ebbf3782c64d74aaf7dd39cd561175", "08c774f20c984008882da2b8547850eb", "cb66d4266148455bbddf5d059a483711"]
+        # trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d", "00ebbf3782c64d74aaf7dd39cd561175", "08c774f20c984008882da2b8547850eb", "cb66d4266148455bbddf5d059a483711"]
+        trajectory = vp_list
     )
 
     global_classes = set()

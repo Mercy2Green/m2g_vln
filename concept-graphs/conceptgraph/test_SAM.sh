@@ -27,7 +27,7 @@
 
 # The ConceptGraphs-Detect 
 python scripts/generate_gsa_results.py \
-    --dataset_root "/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features" \
+    --dataset_root "/data/vln_datasets/preprocessed_data/preprocessed_habitiat_R2R" \
     --dataset_config "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml" \
     --scene_id "17DRP5sb8fy" \
     --class_set "ram" \
@@ -35,7 +35,8 @@ python scripts/generate_gsa_results.py \
     --text_threshold 0.2 \
     --add_bg_classes \
     --accumu_classes \
-    --exp_suffix withbg_allclasses
+    --exp_suffix withbg_allclasses \
+    --connectivity_dir "/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/datasets/R2R/connectivity"
 
     # --dataset_root "/data/vln_datasets/matterport3d/v1/unzipped" \
 
