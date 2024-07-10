@@ -1,3 +1,4 @@
 /bert-base
 
 *.npz
+concept-graphs/conceptgraph.zip
