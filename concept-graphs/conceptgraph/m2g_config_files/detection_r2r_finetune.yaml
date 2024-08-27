@@ -1,0 +1,31 @@
+# dataset_root: /data0/vln_datasets/preprocessed_data/preprocessed_habitiat_R2R
+# dataset_config: "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+# class_set: "ram"
+# box_threshold: 0.2
+# text_threshold: 0.2
+# add_bg_classes: true
+# accumu_classes: true
+# exp_suffix: withbg_allclasses
+
+dataset_root: /data0/vln_datasets/preprocessed_data/preprocessed_habitiat_R2R
+dataset_config: "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
+scene_id: "train_3"
+start: 0
+end: -1
+stride: 1
+desired_height: 480
+desired_width: 640
+box_threshold: 0.2
+text_threshold: 0.2
+nms_threshold: 0.5
+class_set: "ram"
+detector: "dino"
+add_bg_classes: true
+accumu_classes: true
+sam_variant: "sam"
+save_video: false
+device: "cuda"
+use_slow_vis: false
+exp_suffix: "withbg_allclasses"
+save_seg: True
+debug_save_path: /data0/vln_datasets/preprocessed_data/debug_finetune_online_cg
