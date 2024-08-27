@@ -68,7 +68,7 @@ def build_simulator(connectivity_dir):
     return sim
 
 def build_habitat_sim(scan):
-    sim = HabitatUtils(f'/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
+    sim = HabitatUtils(f'/data/vln_datasets/mp3d/v1/tasks/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
     return sim
 
 def process_features(proc_id, out_queue, scanvp_list, args):
@@ -80,49 +80,49 @@ def process_features(proc_id, out_queue, scanvp_list, args):
     pre_scan_id = None
 
     # Set up PyTorch CNN model
-    torch.set_grad_enabled(False)
-    model, img_transforms, device = build_feature_extractor(args.model_name)
+    with torch.set_grad_enabled(False):
+        model, img_transforms, device = build_feature_extractor(args.model_name)
 
-    for scan_id, viewpoint_id in scanvp_list:
-        if scan_id != pre_scan_id:
-            if habitat_sim != None:
-                habitat_sim.sim.close()
-            habitat_sim = build_habitat_sim(scan_id)
-        pre_scan_id = scan_id
+        for scan_id, viewpoint_id in scanvp_list:
+            if scan_id != pre_scan_id:
+                if habitat_sim != None:
+                    habitat_sim.sim.close()
+                habitat_sim = build_habitat_sim(scan_id)
+            pre_scan_id = scan_id
 
-        # Loop all discretized views from this location
-        images = []
-        for ix in range(VIEWPOINT_SIZE):
-            if ix == 0:
-                sim.newEpisode([scan_id], [viewpoint_id], [0], [0])
-            else:
-                sim.makeAction([0], [1.0], [0])
-            state = sim.getState()[0]
-            assert state.viewIndex == ix + 12
+            # Loop all discretized views from this location
+            images = []
+            for ix in range(VIEWPOINT_SIZE):
+                if ix == 0:
+                    sim.newEpisode([scan_id], [viewpoint_id], [0], [0])
+                else:
+                    sim.makeAction([0], [1.0], [0])
+                state = sim.getState()[0]
+                assert state.viewIndex == ix + 12
 
-            # set habitat to the same position & rotation
-            x, y, z, h, e = state.location.x, state.location.y, state.location.z, state.heading, state.elevation
-            habitat_position = [x, z-1.25, -y]
-            mp3d_h = np.array([0, 2*math.pi-h, 0]) # counter-clock heading
-            mp3d_e = np.array([e, 0, 0])
-            rotvec_h = R.from_rotvec(mp3d_h)
-            rotvec_e = R.from_rotvec(mp3d_e)
-            habitat_rotation = (rotvec_h * rotvec_e).as_quat()
-            habitat_sim.sim.set_agent_state(habitat_position, habitat_rotation)
+                # set habitat to the same position & rotation
+                x, y, z, h, e = state.location.x, state.location.y, state.location.z, state.heading, state.elevation
+                habitat_position = [x, z-1.25, -y]
+                mp3d_h = np.array([0, 2*math.pi-h, 0]) # counter-clock heading
+                mp3d_e = np.array([e, 0, 0])
+                rotvec_h = R.from_rotvec(mp3d_h)
+                rotvec_e = R.from_rotvec(mp3d_e)
+                habitat_rotation = (rotvec_h * rotvec_e).as_quat()
+                habitat_sim.sim.set_agent_state(habitat_position, habitat_rotation)
 
-            image = np.array(habitat_sim.render('rgb'), copy=True)  # in RGB channel
-            image = Image.fromarray(image)  # input RGB
-            images.append(image)
+                image = np.array(habitat_sim.render('rgb'), copy=True)  # in RGB channel
+                image = Image.fromarray(image)  # input RGB
+                images.append(image)
 
-        images = torch.stack([img_transforms(image).to(device) for image in images], 0).cuda() # 12 x 3 x 224 x 224
-        grid_fts = []
-        for k in range(0, len(images), args.batch_size):
-            _, b_grid_fts = model.encode_image(images[k: k+args.batch_size])
-            b_grid_fts = b_grid_fts.data.cpu().numpy()
-            grid_fts.append(b_grid_fts)
-        grid_fts = np.concatenate(grid_fts, 0).astype(np.float16)
+            images = torch.stack([img_transforms(image).to(device) for image in images], 0).cuda() # 12 x 3 x 224 x 224
+            grid_fts = []
+            for k in range(0, len(images), args.batch_size):
+                _, b_grid_fts = model.encode_image(images[k: k+args.batch_size])
+                b_grid_fts = b_grid_fts.data.cpu().numpy()
+                grid_fts.append(b_grid_fts)
+            grid_fts = np.concatenate(grid_fts, 0).astype(np.float16)
 
-        out_queue.put((scan_id, viewpoint_id, grid_fts))
+            out_queue.put((scan_id, viewpoint_id, grid_fts))
 
     out_queue.put(None)
 

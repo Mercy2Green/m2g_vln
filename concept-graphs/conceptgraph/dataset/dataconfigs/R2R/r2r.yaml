@@ -2,11 +2,11 @@ dataset_name: 'r2r'
 camera_params:
   image_height: 224
   image_width: 224
-  fx: 193.98
-  fy: 193.98
+  fx: 193.98 # Because the HOFV is 60.
+  fy: 193.98 # Because the HOFV is 60.
   cx: 112
   cy: 112 
-  png_depth_scale: 1.0 #for depth image in png format 0~10 is ok.
+  png_depth_scale: 25.5 #for depth image in png format 0~10 is ok.
 
   # fx: 193.98969044771428
   # fy: 193.98969044771428

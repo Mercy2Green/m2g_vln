@@ -24,7 +24,7 @@ from natsort import natsorted
 from scipy.spatial.transform import Rotation as R
 
 from configparser import ConfigParser
-
+import networkx as nx
 
 from gradslam.datasets import datautils
 from gradslam.geometry.geometryutils import relative_transformation
@@ -32,6 +32,7 @@ from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.rgbdimages import RGBDImages
 
 from conceptgraph.utils.general_utils import to_scalar
+from scipy.spatial.transform import Rotation as R
 
 import configparser
 import ast
@@ -111,7 +112,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         desired_width: int = 640,
         channels_first: bool = False,
         normalize_color: bool = False,
-        device="cuda:0",
+        device="cuda:4",
         dtype=torch.float,
         load_embeddings: bool = False,
         embedding_dir: str = "feat_lseg_240_320",
@@ -421,12 +422,10 @@ class R2RDataset(GradSLAMDataset):
         config.read(self.pose_path)
         for viewpoint_id in self.trajectory:
             data = config.get(viewpoint_id, 'poses_list')
-            # data = config.get(viewpoint_id, 'cg_poses_list')
-            # data = config.get(viewpoint_id, 'test_poses_list')
             poses_list_str = ast.literal_eval(data)
             for pose in poses_list_str:
                 _pose = np.reshape(np.array(pose), (4, 4))
-                # _pose_inv = np.linalg.inv(_pose)
+                _pose_inv = np.linalg.inv(_pose)
                 # print(np.linalg.inv(_pose)[:3,3])
                 poses.append(torch.tensor(_pose))
 
@@ -1204,89 +1203,240 @@ def get_dataset(dataconfig, basedir, sequence, **kwargs):
     else:
         raise ValueError(f"Unknown dataset name {config_dict['dataset_name']}")
 
+def load_nav_graphs(connectivity_dir):
+    ''' Load connectivity graph for each scan '''
+
+    def distance(pose1, pose2):
+        ''' Euclidean distance between two graph poses '''
+        return ((pose1['pose'][3]-pose2['pose'][3])**2\
+          + (pose1['pose'][7]-pose2['pose'][7])**2\
+          + (pose1['pose'][11]-pose2['pose'][11])**2)**0.5
+
+    scans = [x.strip() for x in open(os.path.join(connectivity_dir, 'scans.txt')).readlines()]
+    graphs = {}
+    for scan in scans:
+        with open(os.path.join(connectivity_dir, '%s_connectivity.json' % scan)) as f:
+            G = nx.Graph()
+            positions = {}
+            data = json.load(f)
+            for i, item in enumerate(data):
+                if item['included']:
+                    for j,conn in enumerate(item['unobstructed']):
+                        if conn and data[j]['included']:
+                            positions[item['image_id']] = np.array([item['pose'][3],
+                                    item['pose'][7], item['pose'][11]]);
+                            assert data[j]['unobstructed'][i], 'Graph should be undirected'
+                            G.add_edge(item['image_id'],data[j]['image_id'],weight=distance(item,data[j]))
+            nx.set_node_attributes(G, values=positions, name='position')
+            graphs[scan] = G
+
+    shortest_distances = {}
+    shortest_paths = {}
+    for scan, G in graphs.items():  # compute all shortest paths
+        shortest_distances[scan] = dict(nx.all_pairs_dijkstra_path_length(G))
+        shortest_paths[scan] = dict(nx.all_pairs_dijkstra_path(G))
+    return graphs, shortest_distances, shortest_paths
 
 def load_viewpoint_ids(connectivity_dir):
     viewpoint_ids = []
+    viewpoint_ids_poses = []
     with open(os.path.join(connectivity_dir, 'scans.txt')) as f:
         scans = [x.strip() for x in f]      # load all scans
     for scan in scans:
         with open(os.path.join(connectivity_dir, '%s_connectivity.json'%scan)) as f:
             data = json.load(f)
             viewpoint_ids.extend([(scan, x['image_id']) for x in data if x['included']])
+            viewpoint_ids_poses.extend([(scan, x['image_id'], x['pose']) for x in data if x['included']])
+            
     print('Loaded %d viewpoints' % len(viewpoint_ids))
-    return viewpoint_ids
+    return viewpoint_ids, viewpoint_ids_poses
+
+def find_paths_by_scan(scan_id, file_path):
+    paths = []
+    i = 0
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                data = json.loads(line)
+                if data['scan'] == scan_id:
+                    i = i + 1
+                    if i % 3 == 0:
+                        paths.append(data['path'])
+                    # i = i+1
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+        return None
+    except json.JSONDecodeError:
+        print(f"Could not decode JSON from file: {file_path}")
+        return None
+
+    return paths, i
+
+def generate_subpaths(paths):
+    # 创建一个新列表以避免修改原始列表
+    # 简单版本，顺序循环
+    all_paths = list(paths)
+    
+    # 遍历原始路径列表
+    for path in paths:
+        # 生成并添加所有可能的子路径
+        for i in range(1, len(path)):
+            subpath = path[:i]
+            if subpath not in all_paths:  # 避免添加重复的子路径
+                all_paths.append(subpath)
+
+    return all_paths
+
+def get_unique_seperate_viewpoints(paths):
+    all_paths = list(paths)
+    # for path in paths:
+    # path = all_paths[0]
+    all_seperate_points = []
+    for path in all_paths:
+        for i in range(len(path)):
+            seperate_viewpoint = path[i]
+            if seperate_viewpoint not in all_seperate_points:
+                all_seperate_points.append(seperate_viewpoint)
+    return all_seperate_points
 
 if __name__ == "__main__":
-    # cfg = load_dataset_config(
-    #     "/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
-    # )
-    # dataset = ReplicaDataset(
-    #     config_dict=cfg,
-    #     basedir="/media/m2g/Data/Datasets/replica_niceslam/Replica",
-    #     sequence="office0",
-    #     start=0,
-    #     end=1900,
-    #     stride=100,
-    #     # desired_height=680,
-    #     # desired_width=1200,
-    #     desired_height=240,
-    #     desired_width=320,
-    # )
-
     cfg = load_dataset_config(
         "/home/lg1/peteryu_workspace/BEV_HGT_VLN/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
-        # "/home/lg1/peteryu_workspace/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/R2R/r2r.yaml"
-        #"/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml"
     )
+    json_dir =["/data0/vln_datasets/matterport3d/BEVBert_dataset/datasets/R2R/annotations/pretrain_map/R2R_train_enc.jsonl","/data0/vln_datasets/matterport3d/BEVBert_dataset/datasets/R2R/annotations/pretrain_map/R2R_prevalent_aug_train_enc.jsonl","/data0/vln_datasets/matterport3d/BEVBert_dataset/datasets/R2R/annotations/pretrain_map/R2R_val_seen_enc.jsonl","/data0/vln_datasets/matterport3d/BEVBert_dataset/datasets/R2R/annotations/pretrain_map/R2R_val_unseen_enc.jsonl"]
+    # json_dir =["/data0/vln_datasets/matterport3d/BEVBert_dataset/datasets/R2R/annotations/pretrain_map/R2R_train_enc.jsonl"]
+    # paths = []
+    # goal_scan = "17DRP5sb8fy"
+    # for file in json_dir:
+    #     _path, _path_size = find_paths_by_scan(goal_scan, file)
+    #     paths.extend(_path)
+    #     # print(len(_path))
+    #     # print(_path_size)
+    # traj = get_unique_seperate_viewpoints(paths)
+    # # print("length of paths: ", len(paths))
+    # traj = []
+    # paths_id = 5
+    # paths_lens = []
+    # for i in range(paths_id):
+    #     traj.extend(paths[i])
+    #     paths_lens.append(len(paths[i]))
 
-    scanvp_list = load_viewpoint_ids("/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/precompute_features/connectivity")
 
+    # # generate all possible subpaths
+    # print("#############################################")
+    # print("seperate_viewpoints number: ", len(traj))
+    # print("--------------------------------------------")
+    # for i in range(len(seperate_viewpoints)):
+    #     print(seperate_viewpoints[i])
+    connectivity_dir = "/home/lg1/peteryu_workspace/BEV_HGT_VLN/precompute_features/connectivity"
+    scanvp_list, viewpoint_ids_poses = load_viewpoint_ids("/home/lg1/peteryu_workspace/BEV_HGT_VLN/precompute_features/connectivity")
+    graphs, shortest_distances, shortest_paths = load_nav_graphs(connectivity_dir)
+    # print shortest_paths size
+    import pickle
     traj=[]
     goal_scan = "17DRP5sb8fy"
+    path_list_dir = "/home/lg1/lujia/VLN_HGT/17DRP5sb8fy_path_list.pkl"
+    with open(path_list_dir, 'rb') as f:
+        path_list = pickle.load(f)
+    # print(path_list[0][1])
+    # #split path_list[0] into 2 parts
+    # print("path_list[0] size: ", len(path_list[0]))
+    
+    # print(shortest_paths[goal_scan]['10c252c90fa24ef3b698c6f54d984c5c']['50c241453dfd45c1ba95b5d7191982ef'])
     # 17DRP5sb8fy
-    # 1LXtFkjw3qL
-    # 1pXnuDYAj8r
-    # 29hnd4uzFmX
     for scan, vp in scanvp_list:
         if scan == goal_scan:
+            # print("scan: ", scan)
             # print("vp size: ", len(vp))
-            print(vp)
-            traj.append(vp)
+            # print(vp)    
+            # traj.append(vp)
+            # pose = np.array(pose)
+            # pose = pose.reshape(4, 4)
+            # translation_part = pose[:3, 3]   
+            # _pose_np.append(translation_part)            
+            if vp in path_list[0]:
+                print("chengongleyici")
+                traj.append(vp)
 
+    print("Data saved to dataset_data.pkl")
+    print("traj size: ", len(traj))
+    print("first element of traj: ", traj[0])
+    shortest_path_list = []
+    i = 0
+    sum_viewpoint_ids = 0
+    combined_list = []
+    for j in range(1, len(traj)):
+        shortest_path_ij = shortest_paths[goal_scan][traj[i]][traj[j]]
+        # print("shortest_path_ij size: ", len(shortest_path_ij))
+        shortest_path_list.append(shortest_path_ij)
+        sum_viewpoint_ids = sum_viewpoint_ids + 2*len(shortest_path_ij)-1
+        reversed_shortest_path_ij = shortest_path_ij[::-1][1:]
+        new_list = shortest_path_ij + reversed_shortest_path_ij
+        combined_list.extend(new_list)
+    # shortest_path_0 = shortest_path_list[0]
+    # reversed_shortest_path_0 = shortest_path_0[::-1][1:]
+    print("shortest_path_list size: ", len(shortest_path_list))
+    print("sum_viewpoint_ids: ", sum_viewpoint_ids)
+    print("combined_list size: ", len(combined_list))
     dataset = R2RDataset(
         config_dict=cfg,
-        basedir="/media/m2g/Data/Datasets/m2g_vln_server/m2g_vln/VLN-BEVBert/img_features",
+        basedir="/home/lg1/peteryu_workspace/BEV_HGT_VLN/img_features",
         sequence=goal_scan,
-        # trajectory=["0e92a69a50414253a23043758f111cec", "10c252c90fa24ef3b698c6f54d984c5c", "51857544c192476faebf212acb1b3d90", "558ba0761bf24428b9cf91e60333ea25", "3577de361e1a46b1be544d37731bfde6", "da5fa65c13e643719a20cbb818c9a85d"],
-        # trajectory=["10c252c90fa24ef3b698c6f54d984c5c"],
-        # trajectory=["0e92a69a50414253a23043758f111cec"],
-        # trajectory=["51857544c192476faebf212acb1b3d90"],
-        trajectory=traj[0:len(traj)-1:2],
-        relative_pose=True,
+        trajectory=traj,
+        relative_pose=False,
         desired_height=224,
-        desired_width=224,
-        
+        desired_width=224,       
     )
 
-    # dataset = ReplicaDataset(
-    #     config_dict=cfg,
-    #     basedir="/media/m2g/Data/Datasets/replica_niceslam/Replica",
-    #     sequence="room0",
-    #     start=0,
-    #     end=1900,
-    #     stride=100,
-    #     desired_height=680,
-    #     desired_width=1200,
-    # )
+    colors, depths, poses = [], [], []
+    corrdinates = []
+    intrinsics_np = []
+    intrinsics = None
+    VIEWPOINT_SIZE = 12
+    colors_np = []
+    depths_np = []
+    poses_np = []
+    for idx in range(len(dataset)):
+        _color, _depth, intrinsics, _pose = dataset[idx]
+        _intrinsics_np = intrinsics.cpu().numpy()
+        # _color_np = _color.cpu().numpy()
+        # _depth_np = _depth.cpu().numpy()
+        _pose_np = _pose.cpu().numpy()
+        # colors_np.append(_color_np)
+        # depths_np.append(_depth_np)
+        # poses_np.append(_pose_np)
+        # R_np = _pose_np[:3, :3]
+        # t_np = _pose_np[:3, 3]
+        # rotation_x = R.from_euler("x", -90, degrees=True)
+        # rotation_y = R.from_euler("y", 0, degrees=True)
+        # rotation_z = R.from_euler("z", 90, degrees=True)
+        # Rotation_ideal = rotation_z.as_matrix() @ rotation_y.as_matrix() @ rotation_x.as_matrix()
+        # R_np = np.dot(Rotation_ideal, R_np)
+        # t_np = np.dot(Rotation_ideal, t_np)
+        # _pose_np[:3, :3] = R_np
+        # _pose_np[:3, 3] = t_np
+        # _pose = torch.from_numpy(_pose_np).to("cuda:4")
+        colors.append(_color)
+        depths.append(_depth)
+        poses.append(_pose)
+        intrinsics_np.append(_intrinsics_np)
+        if (idx+1) % VIEWPOINT_SIZE == 0:
+            # print("idx: ", idx)
+            corrdinates.append(_pose_np[:3, 3])
+    # data = {
+    #     "colors": colors_np,
+    #     "depths": depths_np,
+    #     "poses": poses_np,
+    #     "intrinsics": intrinsics_np
+    # }
+    data = {
+        "viewpoints": corrdinates
+    }
+    with open('viewpoint_position_partial.pkl', 'wb') as f:
+        pickle.dump(data, f)
 
-    # colors, depths, poses = [], [], []
-    # intrinsics = None
-    # for idx in range(len(dataset)):
-    #     _color, _depth, intrinsics, _pose = dataset[idx]
-    #     colors.append(_color)
-    #     depths.append(_depth)
-    #     poses.append(_pose)
-    # print(intrinsics)
+    # print("Data saved to dataset_data.pkl")
+
     # colors = torch.stack(colors)
     # depths = torch.stack(depths)
     # poses = torch.stack(poses)
@@ -1298,84 +1448,65 @@ if __name__ == "__main__":
     # depths = depths.float()
     # intrinsics = intrinsics.float()
     # poses = poses.float()
-    # print(intrinsics)
 
-    colors, depths, poses = [], [], []
-    corrdinates = []
-    intrinsics = None
-    VIEWPOINT_SIZE = 12
-
-    # for idx in range(len(dataset)):
-    for idx in range(len(dataset)):
-        _color, _depth, intrinsics, _pose = dataset[idx]
-        colors.append(_color)
-        depths.append(_depth)
-        poses.append(_pose)
-        if idx % VIEWPOINT_SIZE == 0:
-            corrdinates.append(_pose[:3, 3])
-
-    colors = torch.stack(colors)
-    depths = torch.stack(depths)
-    poses = torch.stack(poses)
-    colors = colors.unsqueeze(0)
-    depths = depths.unsqueeze(0)
-    intrinsics = intrinsics.unsqueeze(0).unsqueeze(0)
-    poses = poses.unsqueeze(0)
-    colors = colors.float()
-    depths = depths.float()
-    intrinsics = intrinsics.float()
-    poses = poses.float()
-
-    # create rgbdimages object
-    rgbdimages = RGBDImages(
-        colors,
-        depths,
-        intrinsics,
-        poses,
-        channels_first=False,
-        has_embeddings=False,  # KM
-    )
-    # SLAM
-    # rgbdimages.plotly(0).show()
-
-    slam = PointFusion(odom="gt",dsratio=1, device="cuda:0", use_embeddings=False)
-    pointclouds, recovered_poses = slam(rgbdimages)
-    print(recovered_poses.shape)
-    print(recovered_poses)
-
-    # ALL project from One point.
-
-    import open3d as o3d
-
-    print(pointclouds.colors_padded.shape)
-    pcd = pointclouds.open3d(0)
-
-    FOR1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=3, origin=[0, 0, 0])
-
-    visualize_list = [FOR1, pcd]
-    for idx in corrdinates:
-        # tensor idx to numpy.array
-        position = idx.cpu().numpy()
-        visualize_list.append(o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=position))
-
-    # o3d.visualization.draw_geometries(visualize_list)   
-    o3d.visualization.draw_geometries([pcd])   
-    # o3d.visualization.draw_geometries([FOR1, pcd]) 
-
-    # o3d.visualization.draw_geometries([FOR1, pcd])
-    # print(poses.shape)
-    # print(poses)
-    # from icl_dataset import ICLWithCLIPEmbeddings
-
-    # dataset = ICLWithCLIPEmbeddings(
-    #     os.path.join("/home/krishna/data/icl/"),
-    #     trajectories="living_room_traj1_frei_png",
-    #     stride=10,
-    #     height=480,
-    #     width=640,
-    #     embedding_dir="feat_lseg_240_320",
+    # # create rgbdimages object
+    # rgbdimages = RGBDImages(
+    #     colors,
+    #     depths,
+    #     intrinsics,
+    #     poses,
+    #     channels_first=False,
+    #     has_embeddings=False,  # KM
     # )
-    # colors, depths, intrinsics, poses, _, _, embeddings = dataset[
-    #     0
-    # ]  # next(iter(loader))
-    # print(colors.shape, depths.shape, intrinsics.shape, poses.shape)
+
+    # slam = PointFusion(odom="gt",dsratio=1, device="cuda:4", use_embeddings=False)
+    # pointclouds, recovered_poses = slam(rgbdimages)
+
+    # import open3d as o3d
+
+    # print(pointclouds.colors_padded.shape)
+    # pcd = pointclouds.open3d(0)
+
+    # FOR1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=3, origin=[0, 0, 0])
+
+    # visualize_list = [FOR1, pcd]
+    # iter = 0
+    # for i in range(len(paths_lens)):
+    #     path_length = paths_lens[i]
+    #     for j in range(path_length-1):
+    #         source_points = corrdinates[iter].cpu().numpy()
+    #         target_points = corrdinates[iter+1].cpu().numpy()
+    #         points = np.vstack((source_points, target_points))
+    #         lines = [[0, 1]]
+    #         colors = [[0, 1, 0]]
+    #         line_set = o3d.geometry.LineSet(
+    #             points=o3d.utility.Vector3dVector(points),
+    #             lines=o3d.utility.Vector2iVector(lines),
+    #         )
+    #         line_set.colors = o3d.utility.Vector3dVector(colors)
+    #         visualize_list.append(line_set)
+    #         iter = iter + 1
+    #     iter = iter + 1
+    # for idx in corrdinates:
+    #     # tensor idx to numpy.array
+    #     position = idx.cpu().numpy()
+    #     # print("coordinates position: ", position)
+
+    #     visualize_list.append(o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5, origin=position))
+
+    # o3d.visualization.draw_geometries(visualize_list)    
+    # import time
+    # vis = o3d.visualization.Visualizer()
+    # vis.create_window()
+    # # vis.add_geometry([])
+    # # ctr = vis.get_view_control()
+    # for idx in corrdinates:
+    #     # tensor idx to numpy.array
+    #     position = idx.cpu().numpy()
+    #     print("coordinates position: ", position)
+    #     vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5, origin=position))  
+    #     vis.poll_events()
+    #     vis.update_renderer()
+    #     time.sleep(1.0)
+    # vis.destroy_window()
+

@@ -62,18 +62,18 @@ def process_features(proc_id, out_queue, scanvp_list, args):
     print('start proc_id: %d' % proc_id)
 
     # Set up PyTorch CNN model
-    torch.set_grad_enabled(False)
-    model, device = build_feature_extractor(args.model_name, args.checkpoint_file)
+    with torch.set_grad_enabled(False):
+        model, device = build_feature_extractor(args.model_name, args.checkpoint_file)
 
-    with h5py.File(args.img_db, 'r') as f:
-        for scan_id, viewpoint_id in scanvp_list:
-            data = f[f'{scan_id}_{viewpoint_id}'][...].astype('float32')
-            # print(data.shape, data.min(), data.max())
-            images = torch.from_numpy(data).to(device)
-            fts = model({"depth": images})
-            fts = fts.data.cpu().numpy()
-            logits = []
-            out_queue.put((scan_id, viewpoint_id, fts, logits))
+        with h5py.File(args.img_db, 'r') as f:
+            for scan_id, viewpoint_id in scanvp_list:
+                data = f[f'{scan_id}_{viewpoint_id}'][...].astype('float32')
+                # print(data.shape, data.min(), data.max())
+                images = torch.from_numpy(data).to(device)
+                fts = model({"depth": images})
+                fts = fts.data.cpu().numpy()
+                logits = []
+                out_queue.put((scan_id, viewpoint_id, fts, logits))
 
     out_queue.put(None)
 

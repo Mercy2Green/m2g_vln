@@ -1,0 +1,9 @@
+dataset_name: 'r2r'
+camera_params:
+  image_height: 224
+  image_width: 224
+  fx: 112
+  fy: 112
+  cx: 112
+  cy: 112 
+  png_depth_scale: 1 #for depth image in png format 0~10 is ok.

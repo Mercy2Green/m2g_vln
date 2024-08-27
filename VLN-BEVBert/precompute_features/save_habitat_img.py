@@ -11,7 +11,7 @@ import torch.multiprocessing as mp
 import argparse
 import cv2
 
-sys.path.insert(0, '/root/mount/Matterport3DSimulator/build')  # please compile Matterport3DSimulator using cpu_only mode
+sys.path.insert(0, '/home/lg1/peteryu_workspace/BEV_HGT_VLN/Matterport3DSimulator_opencv4/build')  # please compile Matterport3DSimulator using cpu_only mode
 import MatterSim
 from utils.habitat_utils import HabitatUtils
 from scipy.spatial.transform import Rotation as R
@@ -59,7 +59,7 @@ def get_img(proc_id, out_queue, scanvp_list, args):
         if scan_id != pre_scan:
             if habitat_sim != None:
                 habitat_sim.sim.close()
-            habitat_sim = HabitatUtils(f'/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d/{scan_id}/{scan_id}.glb', 
+            habitat_sim = HabitatUtils(f'/data/vln_datasets/mp3d/v1/tasks/mp3d/{scan_id}/{scan_id}.glb', 
                                        int(0), HFOV, HEIGHT, WIDTH)
             pre_scan = scan_id
 
@@ -169,11 +169,11 @@ def build_img_file(args):
         else:
             scan_id, viewpoint_id, images, images_name_list, transformation_matrix_list, camera_intrinsics = res
             # create a .txt file save the camera_intrinsics, and only save fx, fy, cx, cy
-            os.makedirs(f"/root/mount/VLN-BEVBert/img_features/{scan_id}", exist_ok=True)
-            with open(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/camera_intrinsics_{scan_id}.txt", 'w') as f:
+            os.makedirs(f"img_features/{scan_id}", exist_ok=True)
+            with open(f"img_features/{scan_id}/camera_intrinsics_{scan_id}.txt", 'w') as f:
                 f.write(f"{camera_intrinsics[0, 0]} {camera_intrinsics[1, 1]} {camera_intrinsics[0, 2]} {camera_intrinsics[1, 2]}")
             for idx in range(len(images_name_list)):
-                cv2.imwrite(f"/root/mount/VLN-BEVBert/img_features/{scan_id}/{images_name_list[idx]}", images[idx])
+                cv2.imwrite(f"img_features/{scan_id}/{images_name_list[idx]}", images[idx])
 
             num_finished_vps += 1
             progress_bar.update(num_finished_vps)

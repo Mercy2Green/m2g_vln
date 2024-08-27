@@ -104,42 +104,42 @@ def process_features(proc_id, out_queue, scanvp_list, args):
     sim = build_simulator(args.connectivity_dir, args.scan_dir)
 
     # Set up PyTorch CNN model
-    torch.set_grad_enabled(False)
-    model, img_transforms, device = build_feature_extractor(args.model_name, args.checkpoint_file)
+    with torch.set_grad_enabled(False):
+        model, img_transforms, device = build_feature_extractor(args.model_name, args.checkpoint_file)
 
-    for scan_id, viewpoint_id in scanvp_list:
-        # Loop all discretized views from this location
-        images = []
-        for ix in range(VIEWPOINT_SIZE):
-            if ix == 0:
-                sim.newEpisode([scan_id], [viewpoint_id], [0], [0])
-            # elif ix % 12 == 0:
-            #     sim.makeAction([0], [1.0], [1.0])
-            else:
-                sim.makeAction([0], [1.0], [0])
-            state = sim.getState()[0]
-            assert state.viewIndex == ix + 12
+        for scan_id, viewpoint_id in scanvp_list:
+            # Loop all discretized views from this location
+            images = []
+            for ix in range(VIEWPOINT_SIZE):
+                if ix == 0:
+                    sim.newEpisode([scan_id], [viewpoint_id], [0], [0])
+                # elif ix % 12 == 0:
+                #     sim.makeAction([0], [1.0], [1.0])
+                else:
+                    sim.makeAction([0], [1.0], [0])
+                state = sim.getState()[0]
+                assert state.viewIndex == ix + 12
 
-            image = np.array(state.rgb, copy=True) # in BGR channel
-            image = Image.fromarray(image[:, :, ::-1]) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            images.append(image)
+                image = np.array(state.rgb, copy=True) # in BGR channel
+                image = Image.fromarray(image[:, :, ::-1]) #cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                images.append(image)
 
-        images = torch.stack([img_transforms(image).to(device) for image in images], 0) # 12 x 3 x 224 x 224
-        # fts, logits = [], []
-        fts = []
-        for k in range(0, len(images), args.batch_size):
-            # b_fts = model.forward_features(images[k: k+args.batch_size])
-            # b_logits = model.head(b_fts)
-            b_fts = get_patch_fts(model, img_transforms, device, images[k: k+args.batch_size]) # 12 x 196 x 768
-            b_fts = b_fts.data.cpu().numpy()
-            # b_logits = b_logits.data.cpu().numpy()
-            fts.append(b_fts)
-            # logits.append(b_logits)
-        fts = np.concatenate(fts, 0).astype(np.float16)
-        # logits = np.concatenate(logits, 0)
-        logits = None
+            images = torch.stack([img_transforms(image).to(device) for image in images], 0) # 12 x 3 x 224 x 224
+            # fts, logits = [], []
+            fts = []
+            for k in range(0, len(images), args.batch_size):
+                # b_fts = model.forward_features(images[k: k+args.batch_size])
+                # b_logits = model.head(b_fts)
+                b_fts = get_patch_fts(model, img_transforms, device, images[k: k+args.batch_size]) # 12 x 196 x 768
+                b_fts = b_fts.data.cpu().numpy()
+                # b_logits = b_logits.data.cpu().numpy()
+                fts.append(b_fts)
+                # logits.append(b_logits)
+            fts = np.concatenate(fts, 0).astype(np.float16)
+            # logits = np.concatenate(logits, 0)
+            logits = None
 
-        out_queue.put((scan_id, viewpoint_id, fts, logits))
+            out_queue.put((scan_id, viewpoint_id, fts, logits))
 
     out_queue.put(None)
 

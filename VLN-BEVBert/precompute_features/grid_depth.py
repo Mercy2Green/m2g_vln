@@ -52,7 +52,7 @@ def build_mp3d_sim():
 
 ''' Habitat Sim '''
 def build_habitat_sim(scan):
-    sim = HabitatUtils(f'/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
+    sim = HabitatUtils(f'/data/vln_datasets/mp3d/v1/tasks/mp3d/{scan}/{scan}.glb', int(0), int(math.degrees(HFOV)), HEIGHT, WIDTH)
     return sim
 
 def masked_nonzero_pooling(img, mask_input=None):

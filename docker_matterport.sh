@@ -8,9 +8,9 @@ export MATTERPORT_SIMULATOR_DIR=/home/lg1/peteryu_workspace/m2g_vln/Matterport3D
 
 export BEVBERT_DIR=/home/lg1/lujia/BEV_HGT_VLN
 
-export dataset_dir=/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/datasets
+export BEV_datasets_DIR=/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/datasets
 
-export img_features_dir=/home/lg1/peteryu_workspace/m2g_vln/VLN-BEVBert/img_features
+export BEV_img_features_DIR=/home/lg1/peteryu_workspace/BEV_HGT_VLN/img_features
 
 # Habitat dataset for BEV-BERT
 
@@ -23,16 +23,27 @@ export LOCAL_MODEL_DIR=/home/lg1/peteryu_workspace/model
 # export MATTERPORT_SIMULATOR_DIR=/media/m2g/Data/Datasets/m2g_vln/Matterport3DSimulator
 # export MATTERPORT_SIMULATOR_OPENCV4_DIR=/media/m2g/Data/Datasets/m2g_vln/Matterport3DSimulator_opencv4
 
-docker run -ti --gpus 'device=4' \
+# docker run -ti mattersim:11.3.0-devel-ubuntu20.04
+ docker run -ti --gpus 4 \
     --mount type=bind,source=$BEVBERT_DIR,target=/root/mount/VLN-BEVBert \
-    --mount type=bind,source=$dataset_dir,target=/root/mount/datasets \
-    --mount type=bind,source=$img_features_dir,target=/root/mount/img_features \
+    --mount type=bind,source=$BEV_datasets_DIR,target=/root/mount/datasets \
+    --mount type=bind,source=$BEV_img_features_DIR,target=/root/mount/img_features/ \
     mattersim:11.3.0-devel-ubuntu20.04
 
-    # --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/v1/scans \
     # --mount type=bind,source=$MATTERPORT_SIMULATOR_DIR,target=/root/mount/Matterport3DSimulator \
+    # --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/v1/scans \
     # --mount type=bind,source=$HABITAT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d \
-    # --mount type=bind,source=$LOCAL_MODEL_DIR,target=/root/mount/Model \
+    #     --mount type=bind,source=$LOCAL_MODEL_DIR,target=/root/mount/Model \
+# docker run -ti --gpus "device=2,3,4,5,6,7" \
+#     --mount type=bind,source=$MATTERPORT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/v1/scans \
+#     --mount type=bind,source=$MATTERPORT_SIMULATOR_DIR,target=/root/mount/Matterport3DSimulator \
+#     --mount type=bind,source=$BEVBERT_DIR,target=/root/mount/VLN-BEVBert \
+#     --mount type=bind,source=$HABITAT_DATA_DIR,target=/root/mount/Matterport3DSimulator/data/scene_datasets/mp3d \
+#     --mount type=bind,source=$LOCAL_MODEL_DIR,target=/root/mount/Model \
+#     --mount type=bind,source=$BEV_datasets_DIR,target=/root/mount/pretrain/datasets\
+#     --mount type=bind,source=$BEV_img_features_DIR,target=/root/mount/pretrain/img_features
+#     mattersim:11.3.0-devel-ubuntu20.04
+
 #    mattersim:9.2-devel-ubuntu18.04
 # python precompute_features/grid_mp3d_clip.py --scan_dir=/root/mount/Matterport3DSimulator/data/v1/scans
 

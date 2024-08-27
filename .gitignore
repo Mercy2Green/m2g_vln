@@ -1,4 +1,45 @@
-/bert-base
+.ftpignore
+.ftpconfig
+.vscode
 
-*.npz
-concept-graphs/conceptgraph.zip
+# Byte-compiled / optimized / DLL files
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+*$py.class
+*.swp
+*.png
+*.zip
+batchscript*
+phoenix*
+
+/datasets
+/notebooks
+
+build
+snap_ft
+snap_pt
+img_features
+img_features_bak
+ckpts
+zip.bash
+
+bevbert_ce/data
+bevbert_ce/ckpt
+
+*.pkl
+*.pkl.gz
+
+/BACKUP_BIN
+
+# concept-graphs
+# bevbert_ce_origin
+# bevbert_ce_original
+# LLaVA
+# Dockerfile_dir
+# Grounded-Segment-Anything
+# map_nav_src
+# Matterport3DSimulator_opencv4
+# outputs
+# precompute_features
+VLN-BEVBert/torch/hub/checkpoints/B_16-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.0-sd_0.0--imagenet2012-steps_20k-lr_0.01-res_224.npz
