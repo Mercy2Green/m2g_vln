@@ -45,3 +45,20 @@ bevbert_ce/ckpt
 VLN-BEVBert/torch/hub/checkpoints/B_16-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.0-sd_0.0--imagenet2012-steps_20k-lr_0.01-res_224.npz
 
 
+.vscode/
+Dockerfile_dir/
+Env_dir/
+gridmm/
+LLaVA/
+Matterport3DSimulator_opencv4/
+Matterport3DSimulator/
+OpenAI-CLIP-Feature/
+Papers/
+m2g_vln/
+scene_graph_benchmark/
+test_data/
+VinVL/
+VLN_HGT/
+VLN-BEVBert/
+VLN-HAMT/
+
