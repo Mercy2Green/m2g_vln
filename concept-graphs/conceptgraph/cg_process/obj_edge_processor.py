@@ -2,12 +2,11 @@ import os
 import numpy as np
 import h5py
 import json
-import time
 from os import path
 from numpy import save
 from requests import get
-from omegaconf import OmegaConf, DictConfig
-from typing import Dict, Any, List, Literal, Union
+from omegaconf import OmegaConf
+from typing import Dict, Any, List
 
 import argparse
 from pathlib import Path
@@ -19,30 +18,46 @@ import open_clip
 
 import torch
 import torchvision
-from torch.utils.data import Dataset
 import supervision as sv
-from tqdm import trange, tqdm
 
-from conceptgraph.dataset.datasets_common import get_dataset, GradSLAMDataset, as_intrinsics_matrix, from_intrinsics_matrix
-from conceptgraph.utils.vis import vis_result_fast, vis_result_slow_caption
+from conceptgraph.dataset.datasets_common import GradSLAMDataset, as_intrinsics_matrix
+
 from conceptgraph.utils.model_utils import compute_clip_features
 import torch.nn.functional as F
 
 from gradslam.datasets import datautils
 from conceptgraph.slam.utils import gobs_to_detection_list
-from conceptgraph.slam.cfslam_pipeline_batch import *
+from conceptgraph.slam.cfslam_pipeline_batch import BG_CLASSES
+
+# Local application/library specific imports
+from conceptgraph.dataset.datasets_common import get_dataset
+from conceptgraph.utils.vis import OnlineObjectRenderer
+from conceptgraph.utils.ious import (
+    compute_2d_box_contained_batch
+)
+from conceptgraph.utils.general_utils import to_tensor
+
+from conceptgraph.slam.slam_classes import MapObjectList, DetectionList
+from conceptgraph.slam.utils import (
+    create_or_load_colors,
+    merge_obj2_into_obj1, 
+    denoise_objects,
+    filter_objects,
+    merge_objects, 
+    gobs_to_detection_list,
+)
+from conceptgraph.slam.mapping import (
+    compute_spatial_similarities,
+    compute_visual_similarities,
+    aggregate_similarities,
+    merge_detections_to_objects
+)
 
 import gc
-import pickle as pkl
-from dataclasses import dataclass
-from types import SimpleNamespace
-from textwrap import wrap
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components, minimum_spanning_tree
-from transformers import logging as hf_logging
-import rich
-import tyro
+
 
 try: 
     from groundingdino.util.inference import Model
@@ -78,6 +93,9 @@ except ImportError as e:
 
 # Disable torch gradient computation
 # torch.set_grad_enabled(False)
+# Don't set it in global, just set it in the function that needs it.
+# Using with torch.set_grad_enabled(False): is better.
+# Or using with torch.no_grad(): is also good.
     
 # GroundingDINO config and checkpoint
 GROUNDING_DINO_CONFIG_PATH = os.path.join(GSA_PATH, "GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py")
@@ -182,12 +200,17 @@ class ObjEdgeProcessor():
                     
             if filterd_obj != {}:
                 filterd_obj[valname_feature] = filterd_obj[valname_feature] / len(vp_in_path)
-                filterd_obj[valname_feature] = np.linalg.norm(filterd_obj[valname_feature])
                 filterd_obj[valname_pose] = obj[valname_pose]
                 filtered_objs.append(filterd_obj)
                 
-                objs_feature.append(filterd_obj[valname_feature])
+                # obj_feature_tensor = torch.tensor(filterd_obj[valname_feature])
+                # obj_feature_normalize = F.normalize(obj_feature_tensor, p=2, dim=0)
+                # objs_feature.append(obj_feature_normalize.numpy())
+                objs_feature.append(filterd_obj[valname_feature]) # The feature is already normalized.
+                
                 objs_pose.append(filterd_obj[valname_pose])
+        
+        # obj_clip_fts = F.normalize(obj_clip_fts, p=2, dim=-1)
         
         return filtered_objs, objs_feature, objs_pose
         
@@ -255,7 +278,7 @@ class ObjEdgeProcessor():
         if min_distance > similarity_threshold:
             Warning("Compromising. The most similar vp is not similar enough. The distance is larger than the threshold.")
 
-        return closest_vp
+        return closest_vp, min_distance
     
     def load_allobjs_from_hdf5(self):
         hdf5_filename = os.path.join(self.objs_hdf5_save_dir, self.objs_hdf5_save_file_name)
@@ -561,27 +584,27 @@ def get_sam_predictor(variant: str, device: str | int) -> SamPredictor:
         sam_predictor = SamPredictor(sam)
         return sam_predictor
     
-    if variant == "mobilesam":
-        from MobileSAM.setup_mobile_sam import setup_model
-        MOBILE_SAM_CHECKPOINT_PATH = os.path.join(GSA_PATH, "./EfficientSAM/mobile_sam.pt")
-        checkpoint = torch.load(MOBILE_SAM_CHECKPOINT_PATH)
-        mobile_sam = setup_model()
-        mobile_sam.load_state_dict(checkpoint, strict=True)
-        mobile_sam.to(device=device)
+    # if variant == "mobilesam":
+    #     from MobileSAM.setup_mobile_sam import setup_model
+    #     MOBILE_SAM_CHECKPOINT_PATH = os.path.join(GSA_PATH, "./EfficientSAM/mobile_sam.pt")
+    #     checkpoint = torch.load(MOBILE_SAM_CHECKPOINT_PATH)
+    #     mobile_sam = setup_model()
+    #     mobile_sam.load_state_dict(checkpoint, strict=True)
+    #     mobile_sam.to(device=device)
         
-        sam_predictor = SamPredictor(mobile_sam)
-        return sam_predictor
+    #     sam_predictor = SamPredictor(mobile_sam)
+    #     return sam_predictor
 
-    elif variant == "lighthqsam":
-        from LightHQSAM.setup_light_hqsam import setup_model
-        HQSAM_CHECKPOINT_PATH = os.path.join(GSA_PATH, "./EfficientSAM/sam_hq_vit_tiny.pth")
-        checkpoint = torch.load(HQSAM_CHECKPOINT_PATH)
-        light_hqsam = setup_model()
-        light_hqsam.load_state_dict(checkpoint, strict=True)
-        light_hqsam.to(device=device)
+    # elif variant == "lighthqsam":
+    #     from LightHQSAM.setup_light_hqsam import setup_model
+    #     HQSAM_CHECKPOINT_PATH = os.path.join(GSA_PATH, "./EfficientSAM/sam_hq_vit_tiny.pth")
+    #     checkpoint = torch.load(HQSAM_CHECKPOINT_PATH)
+    #     light_hqsam = setup_model()
+    #     light_hqsam.load_state_dict(checkpoint, strict=True)
+    #     light_hqsam.to(device=device)
         
-        sam_predictor = SamPredictor(light_hqsam)
-        return sam_predictor
+    #     sam_predictor = SamPredictor(light_hqsam)
+    #     return sam_predictor
         
     elif variant == "fastsam":
         raise NotImplementedError
@@ -1197,36 +1220,38 @@ class ObjFeatureGenerator():
         _image_rgb = []
         # _image_bgr = []
         
-        _classes, _text_prompt, _caption = self.tag2text_inference(
-            image_rgb=_image_rgb,
-            tagging_model=self.tagging_model,
-            tagging_transform=self.tagging_transform,
-            specified_tags=self.specified_tags, 
-            device = _device
-        )
-        
-        _detections = self.detection_inference(
-            image_rgb = _image_rgb, 
-            classes = _classes, 
-            sam_variant = self.sam_variant, 
-            mask_generator = self.mask_generator,
-            clip_model = self.clip_model,
-            clip_preprocess = self.clip_preprocess,
-            clip_tokenizer = self.clip_tokenizer,
-            grounding_dino_model = self.grounding_dino_model,
-            device = _device
-        )
-        
-        _image_crops, _image_feats, _text_feats = self.segementation_inference(
-            iamge_rgb = _image_rgb,
-            detections = _detections,
-            sam_predictor = self.sam_predictor,
-            clip_model = self.clip_model,
-            clip_preprocess = self.clip_preprocess,
-            clip_tokenizer = self.clip_tokenizer,
-            classes = _classes,
-            device = _device
-        )
+        with torch.set_grad_enabled(False):
+            
+            _classes, _text_prompt, _caption = self.tag2text_inference(
+                image_rgb=_image_rgb,
+                tagging_model=self.tagging_model,
+                tagging_transform=self.tagging_transform,
+                specified_tags=self.specified_tags, 
+                device = _device
+            )
+            
+            _detections = self.detection_inference(
+                image_rgb = _image_rgb, 
+                classes = _classes, 
+                sam_variant = self.sam_variant, 
+                mask_generator = self.mask_generator,
+                clip_model = self.clip_model,
+                clip_preprocess = self.clip_preprocess,
+                clip_tokenizer = self.clip_tokenizer,
+                grounding_dino_model = self.grounding_dino_model,
+                device = _device
+            )
+            
+            _image_crops, _image_feats, _text_feats = self.segementation_inference(
+                iamge_rgb = _image_rgb,
+                detections = _detections,
+                sam_predictor = self.sam_predictor,
+                clip_model = self.clip_model,
+                clip_preprocess = self.clip_preprocess,
+                clip_tokenizer = self.clip_tokenizer,
+                classes = _classes,
+                device = _device
+            )
 
         # Convert the detections to a dict. The elements are in np.array
         detections = {
@@ -1335,6 +1360,7 @@ class ObjFeatureGenerator():
                 color_path = color_path,
             )
             # Detection is not object 
+
             
             # if len(bg_detection_list) > 0:
             #     for detected_object in bg_detection_list:
